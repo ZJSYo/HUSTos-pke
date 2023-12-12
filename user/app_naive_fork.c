@@ -13,6 +13,6 @@ int main(void) {
   } else {
     printu("Parent: Hello world! child id %ld\n", pid);
   }
-  
+
   exit(0);
 }
