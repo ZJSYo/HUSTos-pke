@@ -40,11 +40,9 @@ static uint64 g_ticks = 0;
 //
 void handle_mtimer_trap() {
     sprint("Ticks %d\n", g_ticks);
-    // TODO (lab1_3): increase g_ticks to record this "tick", and then clear the "SIP"
-    // field in sip register.
-    // hint: use write_csr to disable the SIP_SSIP bit in sip.
-    panic("lab1_3: increase g_ticks by one, and clear SIP field in sip register.\n");
-
+//    sprint("Ticks %d\n", g_ticks);
+    g_ticks+=1;
+    write_csr(sip, 0);
 }
 
 //
@@ -79,8 +77,14 @@ void rrsched() {
   // hint: increase the tick_count member of current process by one, if it is bigger than
   // TIME_SLICE_LEN (means it has consumed its time slice), change its status into READY,
   // place it in the rear of ready queue, and finally schedule next process to run.
-  panic( "You need to further implement the timer handling in lab3_3.\n" );
-
+//  panic( "You need to further implement the timer handling in lab3_3.\n" );
+    current->tick_count++;
+    if (current->tick_count >= TIME_SLICE_LEN) {
+        current-> tick_count = 0;
+        insert_to_ready_queue(current);
+        current->status = READY;
+        schedule();
+    }
 }
 
 //
