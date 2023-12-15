@@ -92,7 +92,7 @@ typedef struct process_t {
   int tick_count;
 
   // file system. added @lab4_1
-  proc_file_management *pfiles;
+  proc_file_management *pfiles;//文件打开表
 }process;
 
 // switch to run user app
