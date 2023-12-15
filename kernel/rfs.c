@@ -604,7 +604,7 @@ int rfs_link(struct vinode *parent, struct dentry *sub_dentry, struct vinode *li
   //
 //  panic("You need to implement the code for creating a hard link in lab4_3.\n" );
     link_node->nlinks++;
-    parent->inum = link_node->inum;
+    parent->inum = link_node->inum;//绑定inode
     if (rfs_add_direntry(parent, sub_dentry->name, parent->inum) == -1) {
         sprint("rfs_link: rfs_add_direntry failed\n");
         return -1;
