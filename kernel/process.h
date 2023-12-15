@@ -66,7 +66,7 @@ typedef struct process_t {
   // pointing to the stack used in trap handling.
   uint64 kstack;
   // user page table
-  pagetable_t pagetable;
+  pagetable_t pagetable;//存放va->pa的映射
   // trapframe storing the context of a (User mode) process.
   trapframe* trapframe;
 
@@ -102,6 +102,8 @@ process* alloc_process();
 int free_process( process* proc );
 // fork a child from parent
 int do_fork(process* parent);
+
+int do_wait(int pid);
 
 // current running process
 extern process* current;

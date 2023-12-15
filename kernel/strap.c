@@ -79,10 +79,10 @@ void rrsched() {
   // place it in the rear of ready queue, and finally schedule next process to run.
 //  panic( "You need to further implement the timer handling in lab3_3.\n" );
     current->tick_count++;
-    if (current->tick_count >= TIME_SLICE_LEN) {
+    if (current->tick_count >= TIME_SLICE_LEN) {//时间片用完了
         current-> tick_count = 0;
-        insert_to_ready_queue(current);
         current->status = READY;
+        insert_to_ready_queue(current);
         schedule();
     }
 }

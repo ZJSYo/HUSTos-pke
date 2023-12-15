@@ -8,5 +8,7 @@
 
 void insert_to_ready_queue( process* proc );
 void schedule();
+void insert_to_blocked_queue( process* proc );
+void awake_father_process( process* child );
 
 #endif
