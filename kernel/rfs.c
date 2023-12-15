@@ -648,7 +648,7 @@ int rfs_readdir(struct vinode *dir_vinode, struct dir *dir, int *offset) {
   // reads a directory entry from the directory cache stored in vfs inode.
   struct rfs_dir_cache *dir_cache =
       (struct rfs_dir_cache *)dir_vinode->i_fs_info;
-  struct rfs_direntry *p_direntry = dir_cache->dir_base_addr + direntry_index;
+  struct rfs_direntry *p_direntry = dir_cache->dir_base_addr + direntry_index;//找到了缓存的中的目录项
 
   // TODO (lab4_2): implement the code to read a directory entry.
   // hint: in the above code, we had found the directory entry that located at the
@@ -658,8 +658,8 @@ int rfs_readdir(struct vinode *dir_vinode, struct dir *dir, int *offset) {
   // dir->name and dir->inum.
   // note: DO NOT DELETE CODE BELOW PANIC.
 //  panic("You need to implement the code for reading a directory entry of rfs in lab4_2.\n" );
-  dir->inum = p_direntry->inum;
-  strcpy(dir->name, p_direntry->name);
+  dir->inum = p_direntry->inum;//inode号
+  strcpy(dir->name, p_direntry->name);//复制目录文件名
 
   // DO NOT DELETE CODE BELOW.
   (*offset)++;
