@@ -458,23 +458,29 @@ struct vinode *rfs_lookup(struct vinode *parent, struct dentry *sub_dentry) {
 // return the vfs inode of the file being created.
 //
 struct vinode *rfs_create(struct vinode *parent, struct dentry *sub_dentry) {
-  struct rfs_device *rdev = rfs_device_list[parent->sb->s_dev->dev_id];
+    /**
+     * 1. 找到挂载设备上空闲的inode空间
+     * 2. 为其分配一个inode以及物理块空间并初始化
+     * 3. 将inode写入磁盘
+     * 4. 建立vfs inode并创建目录项写入目录
+     */
+  struct rfs_device *rdev = rfs_device_list[parent->sb->s_dev->dev_id]; //找到挂载的设备
 
   // ** find a free disk inode to store the file that is going to be created
   struct rfs_dinode *free_dinode = NULL;
   int free_inum = 0;
   for (int i = 0; i < (RFS_BLKSIZE / RFS_INODESIZE * RFS_MAX_INODE_BLKNUM);
        ++i) {
-    free_dinode = rfs_read_dinode(rdev, i);
-    if (free_dinode->type == R_FREE) {  // found
+    free_dinode = rfs_read_dinode(rdev, i);//从设备中读取inode
+    if (free_dinode->type == R_FREE) {  // 找到空闲的inode
       free_inum = i;
       break;
     }
-    free_page(free_dinode);
+    free_page(free_dinode); //清空inode
   }
 
-  if (free_dinode == NULL)
-//    panic("rfs_create: no more free disk inode, we cannot create file.\n" );
+  if (free_dinode == NULL)//没找到空闲的inode
+    panic("rfs_create: no more free disk inode, we cannot create file.\n" );
 
   // initialize the states of the file being created
 
@@ -487,25 +493,27 @@ struct vinode *rfs_create(struct vinode *parent, struct dentry *sub_dentry) {
   // blocks, i.e., its block count.
   // Note: DO NOT DELETE CODE BELOW PANIC.
 //  panic("You need to implement the code of populating a disk inode in lab4_1.\n" );
-  free_dinode->size = 0;
-  free_dinode->type = R_FILE;
-  free_dinode->nlinks = 1;
-  free_dinode->blocks = 100;
+  // **  populate the disk inode of the file being created
+  free_dinode->size = 0;//文件大小为0bytes
+  free_dinode->type = R_FILE;//类型为RFS中的文件
+  free_dinode->nlinks = 1;//链接数为1
+  free_dinode->blocks = 100;//块数为100
   // DO NOT REMOVE ANY CODE BELOW.
   // allocate a free block for the file
-  free_dinode->addrs[0] = rfs_alloc_block(parent->sb);
+  free_dinode->addrs[0] = rfs_alloc_block(parent->sb);//分配一个空闲块
 
   // **  write the disk inode of file being created to disk
-  rfs_write_dinode(rdev, free_dinode, free_inum);
-  free_page(free_dinode);
+  rfs_write_dinode(rdev, free_dinode, free_inum);//将inode刷盘
+  free_page(free_dinode);//释放内存
 
   // ** build vfs inode according to dinode
+  // 建立vfs vinode
   struct vinode *new_vinode = rfs_alloc_vinode(parent->sb);
   new_vinode->inum = free_inum;
   rfs_update_vinode(new_vinode);
 
   // ** append the new file as a direntry to its parent dir
-  int result = rfs_add_direntry(parent, sub_dentry->name, free_inum);
+  int result = rfs_add_direntry(parent, sub_dentry->name, free_inum);//添加目录项
   if (result == -1) {
     sprint("rfs_create: rfs_add_direntry failed");
     return NULL;
