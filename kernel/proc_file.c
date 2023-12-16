@@ -46,19 +46,13 @@ static void transfer_2_absolute_path(char * relative_path,char * absolute_path){
     }
     switch (type) {
         case 1:
-//            sprint("absolute_path:%s\n",absolute_path);
-//            sprint("relative_path+2:%s\n",relative_path+2);
             strcat(absolute_path,relative_path+2);//相对路径为'./'，则需要去掉'./'
             break;
         case 2:
-//            sprint("absolute_path:%s\n",absolute_path);
-//            sprint("relative_path+3:%s\n",relative_path+3);
             strcat(absolute_path,relative_path+3);//相对路径为'../'，则需要去掉'../'
             break;
         default:
-//            sprint("absolute_path:%s\n",absolute_path);
-//            sprint("relative_path:%s\n",relative_path);
-            strcat(absolute_path,relative_path);//相对路径为'/'，则不需要去掉
+            strcat(absolute_path,relative_path);//路径为'/'，则不需要去掉
             break;
     }
 }
@@ -279,22 +273,11 @@ int do_read_cwd(char *pathpa) {
         strcpy(pathpa,"/");
         return 0;
     }else {
-        while (cwd) {
-            char tmp[MAX_PATH_LEN];
-//            sprint("pathpa in loop:%s len:%d\n",pathpa, strlen(pathpa));
-//            sprint("tmp in loop:%s len:%d\n",tmp, strlen(tmp));
-            memset(tmp, '\0', MAX_PATH_LEN);
-            memcpy(tmp, pathpa, strlen(pathpa));
-            memset(pathpa, '\0', MAX_DENTRY_NAME_LEN);
-            memcpy(pathpa, cwd->name, strlen(cwd->name));
-            if (cwd->parent != NULL) {
-                pathpa[strlen(cwd->name)] = '/';
-                pathpa[strlen(cwd->name) + 1] = '\0';
-            }
-
-            strcat(pathpa, tmp);
-            cwd = cwd->parent;
-        }
+        char absolute_path[MAX_DEVICE_NAME_LEN];
+        memset(absolute_path, '\0', MAX_DEVICE_NAME_LEN);
+        transfer_2_absolute_path(pathpa, absolute_path);
+//        sprint("absolute_path after transfer:%s\n", absolute_path);
+        strcpy(pathpa, absolute_path);
 //        sprint("pathpa before transfer:%s\n",pathpa);
         pathpa[strlen(pathpa) - 1] = '\0';//TODO
     }
