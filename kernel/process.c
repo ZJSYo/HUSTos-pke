@@ -276,7 +276,6 @@ int do_fork(process *parent) {
                 child->total_mapped_region++;
                 break;
             }
-
         }
     }
 

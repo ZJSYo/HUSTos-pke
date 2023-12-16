@@ -34,6 +34,7 @@ void insert_to_ready_queue( process* proc ) {
 
   return;
 }
+
 void insert_to_blocked_queue( process* proc ){
 //    sprint( "going to insert process %d to blocked queue.\n", proc->pid );
   if( blocked_queue_head == NULL ){
