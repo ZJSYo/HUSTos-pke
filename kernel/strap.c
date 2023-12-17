@@ -9,9 +9,11 @@
 #include "pmm.h"
 #include "vmm.h"
 #include "util/functions.h"
+#include "memlayout.h"
 
 #include "spike_interface/spike_utils.h"
 
+int n_stack_pages = 1;
 //
 // handling the syscalls. will call do_syscall() defined in kernel/syscall.c
 //
@@ -60,14 +62,14 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval) {
             // virtual address that causes the page fault.
         {
 //            sprint("g_upage_start: %lx\n", g_ufree_page);
-            if(stval >= g_ufree_page && stval <g_ufree_page + PGSIZE)//非法地址
-            {
+            if(stval >= g_ufree_page && stval < USER_STACK_TOP - (n_stack_pages +1) * PGSIZE){
                 panic("this address is not available!");
                 break;
             }
             void *pa = alloc_page();//分配物理页面
             user_vm_map(current->pagetable, stval / (PGSIZE) * (PGSIZE), PGSIZE, (uint64)(pa),
                         prot_to_type(PROT_WRITE | PROT_READ, 1));//映射
+            n_stack_pages++;//初始为1，每次分配一个页面，n_stack_pages++
             break;
         }
         default:
