@@ -2,9 +2,6 @@
 #include "util/string.h"
 #include "util/types.h"
 
-void cd(const char *path){
-    change_cwd(path);
-}
 void pwd(){
     char path[30];
     read_cwd(path);
