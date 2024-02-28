@@ -26,6 +26,10 @@ typedef struct process_t {
   pagetable_t pagetable;
   // trapframe storing the context of a (User mode) process.
   trapframe* trapframe;
+
+  uint64 heap_size;
+  uint64 mcb_head; // 内存控制块链表头指针的地址pa
+    uint64 mcb_tail; // 内存控制块链表尾指针的地址pa
 }process;
 
 // switch to run user app

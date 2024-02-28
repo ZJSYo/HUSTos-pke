@@ -27,8 +27,9 @@ int main(void) {
 
   strcpy(p,str);
   printu("%s\n",p);
+  pintu("p is malloced and m is freed\n");
   char *n = (char *)better_malloc(50);
-  
+
   if(m != n)
   {
     printu("your malloc is not complete.\n");
