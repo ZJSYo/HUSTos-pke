@@ -103,6 +103,16 @@ void read_uint16(uint16 *out, char **off) {
 * "process->line" stores all relationships map instruction addresses to code line numbers
 * and their code file name index of array "file"
 */
+/*
+ * 修改ctx中的info中的process的debug_line(char *)，dir(char **), file(code_file *), line(addr_line *)
+ * dir,file,line都是数组，存储在debug_line缓冲区中
+ * dir: 存储代码文件的目录名
+ * file: 存储代码文件名和目录名的索引
+ * line: 存储指令地址、代码行号和代码文件名在file数组中的索引
+ * eg. 如某文件第3行为a = 0，被编译成地址为0x1234处的汇编代码li ax, 0和0x1238处的汇编代码sd 0(s0), ax。
+ * 那么file数组中就包含两项，addr属性分别为0x1234和0x1238，line属性为3，file属性为“某文件”的文件名在file数组中的索引。
+ * 通过解析debug_line中的数据，填充dir、file、line数组
+ */
 void make_addr_line(elf_ctx *ctx, char *debug_line, uint64 length) {
    process *p = ((elf_info *)ctx->info)->p;
     p->debugline = debug_line;
@@ -198,25 +208,57 @@ endop:;
 // load the elf segments to memory regions as we are in Bare mode in lab1
 //
 elf_status elf_load(elf_ctx *ctx) {
-  // elf_prog_header structure is defined in kernel/elf.h
-  elf_prog_header ph_addr;
-  int i, off;
 
-  // traverse the elf program segment headers
+    /***** Part1 先是根据elf_header中的ph_addr以及phnum来遍历elf的program header table，载入各个段内容*****/
+  // elf_prog_header structure is defined in kernel/elf.h
+  elf_prog_header ph_addr; //程序头表
+  int i, off;
+    uint64 top = 0;
+  // traverse the elf program segment headers 遍历elf程序段头
   for (i = 0, off = ctx->ehdr.phoff; i < ctx->ehdr.phnum; i++, off += sizeof(ph_addr)) {
-    // read segment headers
+    // read segment headers 从off中读取ph_addr大小的数据到ph_addr--读取elf程序段头
     if (elf_fpread(ctx, (void *)&ph_addr, sizeof(ph_addr), off) != sizeof(ph_addr)) return EL_EIO;
 
     if (ph_addr.type != ELF_PROG_LOAD) continue;
     if (ph_addr.memsz < ph_addr.filesz) return EL_ERR;
     if (ph_addr.vaddr + ph_addr.memsz < ph_addr.vaddr) return EL_ERR;
 
-    // allocate memory block before elf loading
+    // allocate memory block before elf loading 分配内存块，大小为ph_addr.memsz
     void *dest = elf_alloc_mb(ctx, ph_addr.vaddr, ph_addr.vaddr, ph_addr.memsz);
 
-    // actual loading
+    // actual loading 从ph_addr.off中读取ph_addr.memsz大小的数据到dest--数据加载
     if (elf_fpread(ctx, dest, ph_addr.memsz, ph_addr.off) != ph_addr.memsz)
       return EL_EIO;
+    // 更新top--top为elf程序段的最大地址
+    if (ph_addr.vaddr + ph_addr.memsz > top) top = ph_addr.vaddr + ph_addr.memsz;
+  }
+    /***** Part2 遍历所有的section header，找到.debug_line section，并进行解析 ****/
+  elf_sect_header shstrtab,tmp;
+
+  //读入shstrtab
+
+  if(elf_fpread(ctx,(void*)&shstrtab,sizeof(shstrtab),
+                ctx->ehdr.shoff + ctx->ehdr.shstrndx * sizeof(shstrtab)) != sizeof(shstrtab))
+      return EL_EIO;
+
+
+
+
+  for(i=0,off=ctx->ehdr.shoff;i < ctx->ehdr.shnum;i++,off+=sizeof(tmp)){
+      //读入section header_i
+    if(elf_fpread(ctx,(void*)&tmp,sizeof(tmp),off) != sizeof(tmp))
+        return EL_EIO;
+    char all_name[shstrtab.size];
+    //读入shstrtab中的所有字符串
+      elf_fpread(ctx,&all_name,shstrtab.size,shstrtab.offset);
+
+    //判断是否为.debug_line section
+    if(strcmp(".debug_line",all_name+tmp.name) == 0){
+      if(elf_fpread(ctx,(void*)top,tmp.size,tmp.offset) != tmp.size)
+          return EL_EIO;
+        make_addr_line(ctx,(char*)top,tmp.size);
+        break;
+    }
   }
 
   return EL_OK;
