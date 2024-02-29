@@ -91,6 +91,16 @@ typedef struct process_t {
   int tick_count;
 }process;
 
+/* -- 信号量的定义 -- */
+typedef struct semaphore_t {
+  int value;//信号量的值
+  int is_occupied;// 信号量是否被占用，用在信号量池中
+  process* waiting_queue_head;
+  process* waiting_queue_tail;//等待进程队列
+} semaphore;
+
+
+
 // switch to run user app
 void switch_to(process*);
 
@@ -103,7 +113,18 @@ int free_process( process* proc );
 // fork a child from parent
 int do_fork(process* parent);
 
+//alloc a new semaphore from pool
+int do_sem_new(int value);
+// p operation on semaphore
+int do_sem_p(int sem_id);
+// v operation on semaphore
+int do_sem_v(int sem_id);
+// free a semaphore
+int do_sem_free(int sem_id);
+
 // current running process
 extern process* current;
+//semaphore pool
+extern semaphore sem_pool[NPROC];
 
 #endif
