@@ -19,7 +19,7 @@ static void handle_timer() {
   int cpuid = read_csr(mhartid);
   // setup the timer fired at next time (TIMER_INTERVAL from now)
   *(uint64*)CLINT_MTIMECMP(cpuid) = *(uint64*)CLINT_MTIMECMP(cpuid) + TIMER_INTERVAL;
-
+  
   // setup a soft interrupt in sip (S-mode Interrupt Pending) to be handled in S-mode
   write_csr(sip, SIP_SSIP);
 }
