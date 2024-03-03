@@ -16,6 +16,7 @@
 #include "util/string.h"
 #include "elf.h"
 
+
 //
 // initialize file system
 //
@@ -224,5 +225,7 @@ int do_unlink(char *path) {
 }
 
 int do_exec(char * pathpa){
-   return load_bincode_from_host_elf_path(current,pathpa);
+  sprint("do exec:%s\n",pathpa);
+  return exec_file(pathpa,current);
+  //  return load_bincode_from_host_elf_path(current,pathpa);
 }

@@ -169,5 +169,6 @@ int close(int fd) {
 }
 
 int exec(const char *path) {
+  printu("exec:begin\n");
   return do_user_call(SYS_user_exec, (uint64)path, 0, 0, 0, 0, 0, 0);
 }

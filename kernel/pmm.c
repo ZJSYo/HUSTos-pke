@@ -36,6 +36,7 @@ static void create_freepage_list(uint64 start, uint64 end) {
 // place a physical page at *pa to the free list of g_free_mem_list (to reclaim the page)
 //
 void free_page(void *pa) {
+  // sprint("pa mod PGSIZE: %d, pa < free_mem_start_addr: %d, pa >= free_mem_end_addr: %d\n",((uint64)pa % PGSIZE), ((uint64)pa < free_mem_start_addr), ((uint64)pa >= free_mem_end_addr));
   if (((uint64)pa % PGSIZE) != 0 || (uint64)pa < free_mem_start_addr || (uint64)pa >= free_mem_end_addr)
     panic("free_page 0x%lx \n", pa);
 

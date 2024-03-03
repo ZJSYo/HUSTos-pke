@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 #include <errno.h>
-
+#include "string.h"
 #include "util/types.h"
 #include "syscall.h"
 #include "string.h"
@@ -14,7 +14,7 @@
 #include "vmm.h"
 #include "sched.h"
 #include "proc_file.h"
-
+#include "hostfs.h"
 #include "spike_interface/spike_utils.h"
 
 //
@@ -215,9 +215,32 @@ ssize_t sys_user_unlink(char * vfn){
   return do_unlink(pfn);
 }
 
+int strncmp(const char* s1, const char* s2, size_t n) {
+  unsigned char c1, c2;
+
+  do {
+    c1 = *s1++;
+    c2 = *s2++;
+    n--;
+  } while (n > 0 && c1 != 0 && c1 == c2);
+
+  return c1 - c2;
+}
 int sys_user_exec(char * path){
-    char * ppath = (char*)user_va_to_pa((pagetable_t)(current->pagetable), (void*)path);
+  char * ppath = (char*)user_va_to_pa((pagetable_t)(current->pagetable), (void*)path);
+  //如果path 不以 /RAMDISK0 开头，说明在hostfs中，需要在文件前面加上 HOST_ROOT_DIR
+  if(strncmp(ppath, "/RAMDISK0", 9) != 0){
+    char * ppath_1 = (char*)alloc_page();
+    strcpy(ppath_1, H_ROOT_DIR);
+    strcpy(ppath_1+strlen(H_ROOT_DIR), ppath);
+    sprint("sys_user_exec:exec file path in hostfs: %s\n", ppath_1);
+    return do_exec(ppath_1);
+  }else{
+    sprint("sys_user_exec:exec file path in rfs: %s\n", ppath);
     return do_exec(ppath);
+  }
+
+  
 }
 //
 // [a0]: the syscall number; [a1] ... [a7]: arguments to the syscalls.
@@ -267,6 +290,8 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
       return sys_user_link((char *)a1, (char *)a2);
     case SYS_user_unlink:
       return sys_user_unlink((char *)a1);
+      case SYS_user_exec:
+          return sys_user_exec((char *)a1);
     default:
       panic("Unknown syscall %ld \n", a0);
   }

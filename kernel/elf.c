@@ -27,8 +27,10 @@ static void *elf_alloc_mb(elf_ctx *ctx, uint64 elf_pa, uint64 elf_va, uint64 siz
   if (pa == 0) panic("uvmalloc mem alloc falied\n");
 
   memset((void *)pa, 0, PGSIZE);
+  // sprint("elf_alloc_mb: allocated a page at 0x%lx\n", pa);
   user_vm_map((pagetable_t)msg->p->pagetable, elf_va, PGSIZE, (uint64)pa,
          prot_to_type(PROT_WRITE | PROT_READ | PROT_EXEC, 1));
+  // sprint("elf_alloc_mb: mapped a page at 0x%lx\n", pa);
 
   return pa;
 }
@@ -175,31 +177,126 @@ void load_bincode_from_host_elf(process *p) {
   sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
 }
 
-int load_bincode_from_host_elf_path(process *p, char *pathpa) {
+// ERR:思路一：重新载入elf文件，地址映射出错
+// int load_bincode_from_host_elf_path(process *p, char *pathpa) {
 
-    sprint("Application: %s\n", pathpa);
+//     sprint("Application: %s\n", pathpa);
+//   elf_ctx elfloader;
+//   elf_info info;
+//   info.f = spike_file_open(pathpa, O_RDONLY, 0);//打开文件
+//   info.p = p;
+//   if (IS_ERR_VALUE(info.f)){
+//       panic("Fail on openning the input application program.\n");
+//       return -1;
+//   }
+//   if (elf_init(&elfloader, &info) != EL_OK)
+//   {
+//       panic("fail to init elfloader.\n");
+//       return -1;
+//   }
+
+
+//   if (elf_load(&elfloader) != EL_OK){
+//       panic("Fail on loading elf.\n");
+//       return -1;
+//   }
+
+//   p->trapframe->epc = elfloader.ehdr.entry;
+//   sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
+//   spike_file_close( info.f );
+//   return 0;
+// }
+
+int exec_file(char *path, process *p){
+  spike_file_t * file = spike_file_open(path,O_RDONLY, 0);
+  if(IS_ERR_VALUE(file)){
+    panic("Fail on openning the input application program.\n");
+    return -1;
+  }else{
+    sprint("file:%s open success\n",path);
+  }
+  //将现在进程p的内存空间释放
+  //释放进程的内存空间
+  int tot = p->total_mapped_region;
+  for(int i=0;i<tot;i++){
+    switch(p->mapped_info[i].seg_type){
+      case CODE_SEGMENT:
+      sprint("free code segment\n");
+      user_vm_unmap((pagetable_t)p->pagetable, p->mapped_info[CODE_SEGMENT].va, PGSIZE, 1);
+      p->total_mapped_region--;
+        break;
+      case DATA_SEGMENT:
+        sprint("free data segment\n");
+        user_vm_unmap((pagetable_t)p->pagetable, p->mapped_info[DATA_SEGMENT].va, PGSIZE, 1);
+        p->total_mapped_region--;
+        break;
+      case HEAP_SEGMENT:
+        sprint("free heap segment\n");
+        user_vm_unmap((pagetable_t)p->pagetable, p->mapped_info[HEAP_SEGMENT].va, PGSIZE, 1);
+        p->total_mapped_region--;
+        break;
+        case STACK_SEGMENT:
+        sprint("free stack segment\n");
+        user_vm_unmap((pagetable_t)p->pagetable, p->mapped_info[STACK_SEGMENT].va, PGSIZE, 1);
+        p->total_mapped_region--;
+        break;
+      default:
+        break;
+    }
+  }
+  //读取elf文件，将其代码段，数据段，堆栈段替换进程的内存空间
   elf_ctx elfloader;
   elf_info info;
-  info.f = spike_file_open(pathpa, O_RDONLY, 0);//打开文件
+  info.f = file;
   info.p = p;
-  if (IS_ERR_VALUE(info.f)){
-      panic("Fail on openning the input application program.\n");
-      return -1;
+  if(elf_init(&elfloader, &info) != EL_OK){
+    panic("fail to init elfloader.\n");
+    return -1;
   }
-  if (elf_init(&elfloader, &info) != EL_OK)
-  {
-      panic("fail to init elfloader.\n");
-      return -1;
+  if(elf_load(&elfloader) != EL_OK){
+    panic("Fail on loading elf.\n");
+    return -1;
   }
-
-
-  if (elf_load(&elfloader) != EL_OK){
-      panic("Fail on loading elf.\n");
-      return -1;
-  }
-
   p->trapframe->epc = elfloader.ehdr.entry;
+  spike_file_close(file);
   sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
-  spike_file_close( info.f );
+  
+  // // 将elf文件的代码段，数据段，堆栈段 复制到进程的内存空间
+  // elf_prog_header ph_addr;
+  // int i, off;
+
+  // // 遍历elf程序段头
+  // for (i = 0, off = elfloader.ehdr.phoff; i < elfloader.ehdr.phnum; i++, off += sizeof(ph_addr)) {
+  //   // 读取段头
+  //   if (elf_fpread(&elfloader, (void *)&ph_addr, sizeof(ph_addr), off) != sizeof(ph_addr)){
+  //     panic("Fail on reading elf file.\n");
+  //     return -1;
+  //   }
+  //   if (ph_addr.type != ELF_PROG_LOAD) continue;
+  //   if (ph_addr.memsz < ph_addr.filesz){
+  //     panic("Fail on loading elf file.\n");
+  //     return EL_ERR;
+  //   }
+  //   if (ph_addr.vaddr + ph_addr.memsz < ph_addr.vaddr){
+  //     panic("Fail on loading elf file.\n");
+  //     return EL_ERR;
+  //   }
+  //   // 读取段的内容，将其复制到进程的内存空间
+  //   void * dest = alloc_page();
+  //   if (dest == 0){
+  //     panic("uvmalloc mem alloc falied\n");
+  //     return -1;
+  //   }
+  //   memset((void *)dest, 0, PGSIZE);
+  //   if(elf_fpread(&elfloader, dest, ph_addr.memsz, ph_addr.off) != ph_addr.memsz){
+  //     panic("Fail on reading elf file.\n");
+  //     return EL_EIO;
+  //   }
+   
+    
+
+  // }
+  // sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
   return 0;
+
 }
