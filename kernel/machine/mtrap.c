@@ -33,7 +33,7 @@ void print_errorline(){
     memset(code_line, 0, 1000);
     uint64 epc = read_csr(mepc);//读取导致异常的指令地址
     for(int i = 0; i < current->line_ind; i++){
-        if(current->line[i].addr > epc){//找到导致异常的指令地址所在的行
+        if(current->line[i].addr > epc){//找到导致异常的指令地址所在的行i-1
         // 根据出错的行数，找到对应的文件具体名称
         // 完整文件名 = 目录名(在dir中) + 文件名(在file中)
         addr_line *line = &current->line[i-1];
@@ -43,7 +43,7 @@ void print_errorline(){
         strcpy(file_name + strlen(file_name), current->file[line->file].file);
 
         // 根据出错的行数，找到对应的代码行
-        spike_file_t *f = spike_file_open(file_name, O_RDONLY,0);
+        spike_file_t *f = spike_file_open(file_name, O_RDONLY,0);//打开文件
         struct stat st;
         spike_file_stat(f, &st);
         spike_file_read(f, code_line, st.st_size);
