@@ -153,6 +153,7 @@ void load_bincode_from_host_elf(process *p) {
   elf_info info;
 
   info.f = spike_file_open(arg_bug_msg.argv[0], O_RDONLY, 0);
+
   info.p = p;
   // IS_ERR_VALUE is a macro defined in spike_interface/spike_htif.h
   if (IS_ERR_VALUE(info.f)) panic("Fail on openning the input application program.\n");
@@ -172,4 +173,33 @@ void load_bincode_from_host_elf(process *p) {
   spike_file_close( info.f );
 
   sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
+}
+
+int load_bincode_from_host_elf_path(process *p, char *pathpa) {
+
+    sprint("Application: %s\n", pathpa);
+  elf_ctx elfloader;
+  elf_info info;
+  info.f = spike_file_open(pathpa, O_RDONLY, 0);//打开文件
+  info.p = p;
+  if (IS_ERR_VALUE(info.f)){
+      panic("Fail on openning the input application program.\n");
+      return -1;
+  }
+  if (elf_init(&elfloader, &info) != EL_OK)
+  {
+      panic("fail to init elfloader.\n");
+      return -1;
+  }
+
+
+  if (elf_load(&elfloader) != EL_OK){
+      panic("Fail on loading elf.\n");
+      return -1;
+  }
+
+  p->trapframe->epc = elfloader.ehdr.entry;
+  sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
+  spike_file_close( info.f );
+  return 0;
 }

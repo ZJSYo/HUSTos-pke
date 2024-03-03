@@ -63,6 +63,7 @@ typedef struct elf_ctx_t {
 elf_status elf_init(elf_ctx *ctx, void *info);
 elf_status elf_load(elf_ctx *ctx);
 
-void load_bincode_from_host_elf(process *p);
+void load_bincode_from_host_elf(process *p);//从host的elf文件中加载二进制代码--命令行读入elf文件地址
+int load_bincode_from_host_elf_path(process *p, char *pathpa);
 
 #endif

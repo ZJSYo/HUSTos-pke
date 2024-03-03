@@ -211,10 +211,14 @@ ssize_t sys_user_link(char * vfn1, char * vfn2){
 // lib call to unlink
 //
 ssize_t sys_user_unlink(char * vfn){
-  char * pfn = (char*)user_va_to_pa((pagetable_t)(current->pagetable), (void*)vfn);
+  char * pfn = (char*)user_va_to_pa((pagetable_t)(current->pagetable), (void*)vfn);// 将虚拟地址转换为物理地址
   return do_unlink(pfn);
 }
 
+int sys_user_exec(char * path){
+    char * ppath = (char*)user_va_to_pa((pagetable_t)(current->pagetable), (void*)path);
+    return do_exec(ppath);
+}
 //
 // [a0]: the syscall number; [a1] ... [a7]: arguments to the syscalls.
 // returns the code of success, (e.g., 0 means success, fail for otherwise)

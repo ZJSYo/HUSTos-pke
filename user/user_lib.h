@@ -32,5 +32,5 @@ int closedir_u(int fd);
 // added @ lab4_3
 int link_u(const char *fn1, const char *fn2);
 int unlink_u(const char *fn);
-
+int exec(const char *path);
 #endif
