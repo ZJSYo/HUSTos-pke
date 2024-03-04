@@ -187,10 +187,14 @@ void user_vm_unmap(pagetable_t page_dir, uint64 va, uint64 size, int free) {
   // as naive_free reclaims only one page at a time, you only need to consider one page
   // to make user/app_naive_malloc to behave correctly.
 //  panic( "You have to implement user_vm_unmap to free pages using naive_free in lab2_2.\n" );
+
     pte_t * pte = page_walk(page_dir,va,0);
     if(pte == 0) return;//过滤掉无效的pte
     void * pa = (void *)PTE2PA(*pte);  //获取pte对应的物理地址
+    // sprint("free pages from va: 0x%lx, size: 0x%lx, pa: 0x%lx\n", va, size, pa);
+    
     *pte = *pte & (~PTE_V);  //将V位清零
+    // sprint("free pages from va: 0x%lx, size: 0x%lx, pa: 0x%lx\n", va, size, pa);
     free_page(pa);
 }
 
@@ -200,7 +204,6 @@ void user_vm_unmap(pagetable_t page_dir, uint64 va, uint64 size, int free) {
 void print_proc_vmspace(process* proc) {
   sprint( "======\tbelow is the vm space of process%d\t========\n", proc->pid );
   for( int i=0; i<proc->total_mapped_region; i++ ){
-    sprint( "-va:%lx, npage:%d, ", proc->mapped_info[i].va, proc->mapped_info[i].npages);
     switch(proc->mapped_info[i].seg_type){
       case CODE_SEGMENT: sprint( "type: CODE SEGMENT" ); break;
       case DATA_SEGMENT: sprint( "type: DATA SEGMENT" ); break;

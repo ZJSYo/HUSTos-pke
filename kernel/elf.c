@@ -77,6 +77,48 @@ elf_status elf_load(elf_ctx *ctx) {
     if (ph_addr.type != ELF_PROG_LOAD) continue;
     if (ph_addr.memsz < ph_addr.filesz) return EL_ERR;
     if (ph_addr.vaddr + ph_addr.memsz < ph_addr.vaddr) return EL_ERR;
+    // allocate memory block before elf loading
+    void *dest = elf_alloc_mb(ctx, ph_addr.vaddr, ph_addr.vaddr, ph_addr.memsz);
+    // actual loading
+    if (elf_fpread(ctx, dest, ph_addr.memsz, ph_addr.off) != ph_addr.memsz)
+      return EL_EIO;
+
+    // record the vm region in proc->mapped_info. added @lab3_1
+    int j;
+    for( j=0; j<PGSIZE/sizeof(mapped_region); j++ ) //seek the last mapped region
+      if( (process*)(((elf_info*)(ctx->info))->p)->mapped_info[j].va == 0x0 ) break;
+
+    ((process*)(((elf_info*)(ctx->info))->p))->mapped_info[j].va = ph_addr.vaddr;
+    ((process*)(((elf_info*)(ctx->info))->p))->mapped_info[j].npages = 1;
+
+    // SEGMENT_READABLE, SEGMENT_EXECUTABLE, SEGMENT_WRITABLE are defined in kernel/elf.h
+    if( ph_addr.flags == (SEGMENT_READABLE|SEGMENT_EXECUTABLE) ){
+      ((process*)(((elf_info*)(ctx->info))->p))->mapped_info[j].seg_type = CODE_SEGMENT;
+      sprint( "CODE_SEGMENT added at mapped info offset:%d\n", j );
+    }else if ( ph_addr.flags == (SEGMENT_READABLE|SEGMENT_WRITABLE) ){
+      ((process*)(((elf_info*)(ctx->info))->p))->mapped_info[j].seg_type = DATA_SEGMENT;
+      sprint( "DATA_SEGMENT added at mapped info offset:%d\n", j );
+    }else
+      panic( "unknown program segment encountered, segment flag:%d.\n", ph_addr.flags );
+
+    ((process*)(((elf_info*)(ctx->info))->p))->total_mapped_region ++;
+  }
+
+  return EL_OK;
+}
+elf_status elf_fork(elf_ctx *ctx) {
+  // elf_prog_header structure is defined in kernel/elf.h
+  elf_prog_header ph_addr;
+  int i, off;
+
+  // traverse the elf program segment headers
+  for (i = 0, off = ctx->ehdr.phoff; i < ctx->ehdr.phnum; i++, off += sizeof(ph_addr)) {
+    // read segment headers
+    if (elf_fpread(ctx, (void *)&ph_addr, sizeof(ph_addr), off) != sizeof(ph_addr)) return EL_EIO;
+
+    if (ph_addr.type != ELF_PROG_LOAD) continue;
+    if (ph_addr.memsz < ph_addr.filesz) return EL_ERR;
+    if (ph_addr.vaddr + ph_addr.memsz < ph_addr.vaddr) return EL_ERR;
 
     // allocate memory block before elf loading
     void *dest = elf_alloc_mb(ctx, ph_addr.vaddr, ph_addr.vaddr, ph_addr.memsz);
@@ -84,6 +126,7 @@ elf_status elf_load(elf_ctx *ctx) {
     // actual loading
     if (elf_fpread(ctx, dest, ph_addr.memsz, ph_addr.off) != ph_addr.memsz)
       return EL_EIO;
+
 
     // record the vm region in proc->mapped_info. added @lab3_1
     int j;
@@ -206,7 +249,70 @@ void load_bincode_from_host_elf(process *p) {
 //   spike_file_close( info.f );
 //   return 0;
 // }
-
+elf_status elf_substitute(process * p,elf_ctx * ctx,elf_info * info){
+  elf_prog_header ph_addr;
+  int i, off;
+  for (i = 0, off = ctx->ehdr.phoff; i < ctx->ehdr.phnum; i++, off += sizeof(ph_addr)) {
+    if(elf_fpread(ctx, (void *)&ph_addr, sizeof(ph_addr), off) != sizeof(ph_addr)) return EL_EIO;
+    if(ph_addr.type != ELF_PROG_LOAD) continue;
+    if(ph_addr.memsz < ph_addr.filesz) return EL_ERR;
+    if(ph_addr.vaddr + ph_addr.memsz < ph_addr.vaddr) return EL_ERR;
+    if(ph_addr.flags == (SEGMENT_READABLE|SEGMENT_EXECUTABLE)){
+      //代码段
+      for(int j=0;j<PGSIZE/sizeof(mapped_region);j++){
+        if(p->mapped_info[j].seg_type == CODE_SEGMENT){
+          sprint( "CODE_SEGMENT added at mapped info offset:%d\n", j );
+          // 释放原来的代码段
+          user_vm_unmap((pagetable_t)p->pagetable, p->mapped_info[j].va, PGSIZE, 1);
+          // 重新映射新的代码段
+          void *dest = elf_alloc_mb(ctx, ph_addr.vaddr, ph_addr.vaddr, ph_addr.memsz);
+          if(elf_fpread(ctx, dest, ph_addr.memsz, ph_addr.off) != ph_addr.memsz)
+            return EL_EIO;
+          p->mapped_info[j].va = ph_addr.vaddr;
+          p->mapped_info[j].npages = 1;
+          p->mapped_info[j].seg_type = CODE_SEGMENT;
+          break;
+        }
+      }
+    }else if ( ph_addr.flags == (SEGMENT_READABLE|SEGMENT_WRITABLE) ){
+      int found = 0;//标记是否找到了数据段
+      for(int j=0;j<PGSIZE/sizeof(mapped_region);j++){
+        if(p->mapped_info[j].seg_type == DATA_SEGMENT){
+          sprint( "DATA_SEGMENT added at mapped info offset:%d\n", j );
+          // 释放原来的数据段
+          user_vm_unmap((pagetable_t)p->pagetable, p->mapped_info[j].va, PGSIZE, 1);
+          // 重新映射新的数据段
+          void *dest = elf_alloc_mb(ctx, ph_addr.vaddr, ph_addr.vaddr, ph_addr.memsz);
+          if(elf_fpread(ctx, dest, ph_addr.memsz, ph_addr.off) != ph_addr.memsz)
+            return EL_EIO;
+          p->mapped_info[j].va = ph_addr.vaddr;
+          p->mapped_info[j].npages = 1;
+          p->mapped_info[j].seg_type = DATA_SEGMENT;
+          found = 1;
+          break;
+        }
+      }
+      if(found==0){// 不存在数据段
+        void * dest = elf_alloc_mb(ctx, ph_addr.vaddr, ph_addr.vaddr, ph_addr.memsz);
+        if(elf_fpread(ctx, dest, ph_addr.memsz, ph_addr.off) != ph_addr.memsz)
+          return EL_EIO;
+        for(int j = 0; j < PGSIZE / sizeof(mapped_region); j++) {
+          if(p->mapped_info[j].va == 0) {
+            sprint( "DATA_SEGMENT added at mapped info offset:%d\n", j );
+            p->mapped_info[j].npages = 1;
+            p->mapped_info[j].va = ph_addr.vaddr;
+            p->mapped_info[j].seg_type = DATA_SEGMENT;
+            p->total_mapped_region++;
+            break;
+          }
+        }
+      }
+    }else{
+      panic( "unknown program segment encountered, segment flag:%d.\n", ph_addr.flags );
+    }
+  }
+  return EL_OK;
+}
 int exec_file(char *path, process *p){
   spike_file_t * file = spike_file_open(path,O_RDONLY, 0);
   if(IS_ERR_VALUE(file)){
@@ -217,33 +323,6 @@ int exec_file(char *path, process *p){
   }
   //将现在进程p的内存空间释放
   //释放进程的内存空间
-  int tot = p->total_mapped_region;
-  for(int i=0;i<tot;i++){
-    switch(p->mapped_info[i].seg_type){
-      case CODE_SEGMENT:
-      sprint("free code segment\n");
-      user_vm_unmap((pagetable_t)p->pagetable, p->mapped_info[CODE_SEGMENT].va, PGSIZE, 1);
-      p->total_mapped_region--;
-        break;
-      case DATA_SEGMENT:
-        sprint("free data segment\n");
-        user_vm_unmap((pagetable_t)p->pagetable, p->mapped_info[DATA_SEGMENT].va, PGSIZE, 1);
-        p->total_mapped_region--;
-        break;
-      case HEAP_SEGMENT:
-        sprint("free heap segment\n");
-        user_vm_unmap((pagetable_t)p->pagetable, p->mapped_info[HEAP_SEGMENT].va, PGSIZE, 1);
-        p->total_mapped_region--;
-        break;
-        case STACK_SEGMENT:
-        sprint("free stack segment\n");
-        user_vm_unmap((pagetable_t)p->pagetable, p->mapped_info[STACK_SEGMENT].va, PGSIZE, 1);
-        p->total_mapped_region--;
-        break;
-      default:
-        break;
-    }
-  }
   //读取elf文件，将其代码段，数据段，堆栈段替换进程的内存空间
   elf_ctx elfloader;
   elf_info info;
@@ -253,50 +332,13 @@ int exec_file(char *path, process *p){
     panic("fail to init elfloader.\n");
     return -1;
   }
-  if(elf_load(&elfloader) != EL_OK){
+  if(elf_substitute(p,&elfloader,&info) != EL_OK){
     panic("Fail on loading elf.\n");
     return -1;
   }
   p->trapframe->epc = elfloader.ehdr.entry;
   spike_file_close(file);
   sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
-  
-  // // 将elf文件的代码段，数据段，堆栈段 复制到进程的内存空间
-  // elf_prog_header ph_addr;
-  // int i, off;
-
-  // // 遍历elf程序段头
-  // for (i = 0, off = elfloader.ehdr.phoff; i < elfloader.ehdr.phnum; i++, off += sizeof(ph_addr)) {
-  //   // 读取段头
-  //   if (elf_fpread(&elfloader, (void *)&ph_addr, sizeof(ph_addr), off) != sizeof(ph_addr)){
-  //     panic("Fail on reading elf file.\n");
-  //     return -1;
-  //   }
-  //   if (ph_addr.type != ELF_PROG_LOAD) continue;
-  //   if (ph_addr.memsz < ph_addr.filesz){
-  //     panic("Fail on loading elf file.\n");
-  //     return EL_ERR;
-  //   }
-  //   if (ph_addr.vaddr + ph_addr.memsz < ph_addr.vaddr){
-  //     panic("Fail on loading elf file.\n");
-  //     return EL_ERR;
-  //   }
-  //   // 读取段的内容，将其复制到进程的内存空间
-  //   void * dest = alloc_page();
-  //   if (dest == 0){
-  //     panic("uvmalloc mem alloc falied\n");
-  //     return -1;
-  //   }
-  //   memset((void *)dest, 0, PGSIZE);
-  //   if(elf_fpread(&elfloader, dest, ph_addr.memsz, ph_addr.off) != ph_addr.memsz){
-  //     panic("Fail on reading elf file.\n");
-  //     return EL_EIO;
-  //   }
-   
-    
-
-  // }
-  // sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
   return 0;
 
 }
