@@ -53,6 +53,7 @@ void handle_mtimer_trap() {
 //
 void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval) {
     sprint("handle_page_fault: %lx\n", stval);
+    int hart_id = read_tp();
     switch (mcause) {
         case CAUSE_STORE_PAGE_FAULT:
             // TODO (lab2_3): implement the operations that solve the page fault to
@@ -61,7 +62,7 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval) {
             // virtual address that causes the page fault.
             ;
             void *pa = alloc_page();
-            user_vm_map(current->pagetable, stval / (PGSIZE) * (PGSIZE), PGSIZE, (uint64)(pa),
+            user_vm_map(current[hart_id]->pagetable, stval / (PGSIZE) * (PGSIZE), PGSIZE, (uint64)(pa),
                         prot_to_type(PROT_WRITE | PROT_READ, 1));
             break;
         default:
@@ -78,10 +79,10 @@ void smode_trap_handler(void) {
     // make sure we are in User mode before entering the trap handling.
     // we will consider other previous case in lab1_3 (interrupt).
     if ((read_csr(sstatus) & SSTATUS_SPP) != 0) panic("usertrap: not from user mode");
-
-    assert(current);
+    int hart_id = read_tp();
+    assert(current[hart_id]);
     // save user process counter.
-    current->trapframe->epc = read_csr(sepc);
+    current[hart_id]->trapframe->epc = read_csr(sepc);
 
     // if the cause of trap is syscall from user application.
     // read_csr() and CAUSE_USER_ECALL are macros defined in kernel/riscv.h
@@ -90,7 +91,7 @@ void smode_trap_handler(void) {
     // use switch-case instead of if-else, as there are many cases since lab2_3.
     switch (cause) {
         case CAUSE_USER_ECALL:
-            handle_syscall(current->trapframe);
+            handle_syscall(current[hart_id]->trapframe);
             break;
         case CAUSE_MTIMER_S_TRAP:
             handle_mtimer_trap();
@@ -108,6 +109,6 @@ void smode_trap_handler(void) {
             break;
     }
 
-    // continue (come back to) the execution of current process.
-    switch_to(current);
+    // continue (come back to) the execution of current[hart_id] process.
+    switch_to(current[hart_id]);
 }

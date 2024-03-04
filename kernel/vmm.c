@@ -164,7 +164,7 @@ void *user_va_to_pa(pagetable_t page_dir, void *va) {
     if (pte == 0 || (*pte & PTE_V) == 0 || ((*pte & PTE_R) == 0 && (*pte & PTE_W) == 0))
       return 0;
     uint64 pa = PTE2PA(*pte);
-    return (void *)(pa + ((uint64)va & (1<<PGSHIFT -1)));
+    return (void *)(pa + ((uint64)va & ((1<<PGSHIFT) -1)));
 }
 
 //

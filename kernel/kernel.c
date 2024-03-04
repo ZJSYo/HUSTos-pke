@@ -10,9 +10,10 @@
 #include "vmm.h"
 #include "memlayout.h"
 #include "spike_interface/spike_utils.h"
+#include "sync_utils.h"
 
 // process is a structure defined in kernel/process.h
-process user_app;
+process user_app[NCPU];
 
 //
 // trap_sec_start points to the beginning of S-mode trap segment (i.e., the entry point of
@@ -36,7 +37,10 @@ void enable_paging() {
 // load_bincode_from_host_elf is defined in elf.c
 //
 void load_user_program(process *proc) {
-  sprint("User application is loading.\n");
+       int hart_id = read_tp();
+  sprint("hartid = %d: User application is loading.\n",hart_id);
+  
+  
   // allocate a page to store the trapframe. alloc_page is defined in kernel/pmm.c. added @lab2_1
   proc->trapframe = (trapframe *)alloc_page();
   memset(proc->trapframe, 0, sizeof(trapframe));
@@ -51,8 +55,10 @@ void load_user_program(process *proc) {
 
   // USER_STACK_TOP = 0x7ffff000, defined in kernel/memlayout.h
   proc->trapframe->regs.sp = USER_STACK_TOP;  //virtual address of user stack top
+  
+  proc->trapframe->regs.tp = hart_id;  // set the thread pointer to hart_id
 
-  sprint("hartid = ?: user frame 0x%lx, user stack 0x%lx, user kstack 0x%lx \n", proc->trapframe,
+  sprint("hartid = %d: user frame 0x%lx, user stack 0x%lx, user kstack 0x%lx \n", hart_id,proc->trapframe,
          proc->trapframe->regs.sp, proc->kstack);
 
   // load_bincode_from_host_elf() is defined in kernel/elf.c
@@ -73,37 +79,38 @@ void load_user_program(process *proc) {
          prot_to_type(PROT_READ | PROT_EXEC, 0));
 }
 
+static volatile int cnt = 0;
 //
 // s_start: S-mode entry point of riscv-pke OS kernel.
 //
 int s_start(void) {
-  sprint("hartid = ?: Enter supervisor mode...\n");
+       int hart_id = read_tp();
+  sprint("hartid = %d: Enter supervisor mode...\n",hart_id);
   // in the beginning, we use Bare mode (direct) memory mapping as in lab1.
   // but now, we are going to switch to the paging mode @lab2_1.
   // note, the code still works in Bare mode when calling pmm_init() and kern_vm_init().
   write_csr(satp, 0);
 
   // init phisical memory manager
-  pmm_init();
+  if(hart_id == 0){
+       pmm_init();
 
-  // build the kernel page table
-  kern_vm_init();
-
+       // build the kernel page table
+       kern_vm_init();
+  }
+ sync_barrier(&cnt,NCPU);
   // now, switch to paging mode by turning on paging (SV39)
   enable_paging();
   // the code now formally works in paging mode, meaning the page table is now in use.
   sprint("kernel page table is on \n");
 
   // the application code (elf) is first loaded into memory, and then put into execution
-  load_user_program(&user_app);
+  load_user_program(&user_app[hart_id]);
 
-  sprint("hartid = ?: Switch to user mode...\n");
-  
-  uint64 hartid = 0;
-  
-  vm_alloc_stage[hartid] = 1;
+  sprint("hartid = %d: Switch to user mode...\n",hart_id);
+  vm_alloc_stage[hart_id] = 1;
   // switch_to() is defined in kernel/process.c
-  switch_to(&user_app);
+  switch_to(&user_app[hart_id]);
 
   // we should never reach here.
   return 0;
