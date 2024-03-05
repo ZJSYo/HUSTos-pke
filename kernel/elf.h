@@ -64,6 +64,6 @@ elf_status elf_init(elf_ctx *ctx, void *info);
 elf_status elf_load(elf_ctx *ctx);
 
 void load_bincode_from_host_elf(process *p);//从host的elf文件中加载二进制代码--命令行读入elf文件地址
-
+void load_bincode_from_vfs_elf(process *p);
 int exec_file(char *path, process *p);//执行文件
 #endif
