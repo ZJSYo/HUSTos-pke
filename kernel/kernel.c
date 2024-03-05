@@ -102,14 +102,16 @@ int s_start(void) {
   // now, switch to paging mode by turning on paging (SV39)
   enable_paging();
   // the code now formally works in paging mode, meaning the page table is now in use.
-  sprint("kernel page table is on \n");
+//   sprint("kernel page table is on \n");
 
   // the application code (elf) is first loaded into memory, and then put into execution
   load_user_program(&user_app[hart_id]);
 
-  sprint("hartid = %d: Switch to user mode...\n",hart_id);
+  
   vm_alloc_stage[hart_id] = 1;
   // switch_to() is defined in kernel/process.c
+  sprint("hartid = %d: Switch to user mode...\n",hart_id);
+  vm_alloc_stage[hart_id] = 1;// 表示进入用户模式 user alloc
   switch_to(&user_app[hart_id]);
 
   // we should never reach here.
