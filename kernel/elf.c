@@ -114,7 +114,7 @@ void load_bincode_from_host_elf(process *p) {
   sprint("hartid = %d: Application: %s\n", hart_id, arg_bug_msg.argv[hart_id]);
   if (!argc) panic("You need to specify the application program!\n");
 
-  sprint("hartid = %d: Application: %s\n", hart_id,arg_bug_msg.argv[0]);
+  // sprint("hartid = %d: Application: %s\n", hart_id,arg_bug_msg.argv[0]);
 
   //elf loading. elf_ctx is defined in kernel/elf.h, used to track the loading process.
   elf_ctx elfloader;
