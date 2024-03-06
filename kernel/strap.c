@@ -58,11 +58,26 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval) {
             // dynamically increase application stack.
             // hint: first allocate a new physical page, and then, maps the new page to the
             // virtual address that causes the page fault.
-            ;
-            void *pa = alloc_page();
-            user_vm_map(current->pagetable, stval / (PGSIZE) * (PGSIZE), PGSIZE, (uint64)(pa),
-                        prot_to_type(PROT_WRITE | PROT_READ, 1));
+          {
+            pte_t * pte = page_walk((pagetable_t)current->pagetable, stval, 0);
+            if(pte == 0) { //说明并没有进行映射，不是子进程heap
+              // sprint("page fault without mapping\n");
+              void * pa = alloc_page();
+              user_vm_map((pagetable_t)current->pagetable, stval/(PGSIZE) * (PGSIZE), PGSIZE, (uint64)pa, prot_to_type(PROT_WRITE | PROT_READ, 1));
+            }else {
+              // sprint("Heap page fault with mapping\n");
+              if(*pte & PTE_RSW_0){//cow from parent
+                // sprint("cow from parent\n");
+                copy_on_write(current->parent,current);
+              }else{// cow to childs
+                // sprint("cow to childs\n");
+                do_copy_to_sons(current);
+                *pte &= ~PTE_RSW_1;
+                *pte |= PTE_W;
+              }
+            }
             break;
+          }
         default:
             sprint("unknown page fault.\n");
             break;

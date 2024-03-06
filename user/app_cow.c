@@ -10,15 +10,20 @@
 
 int main(void) {
   int *heap_data = naive_malloc();
+  int *heap_data1 = naive_malloc();
   printu("the physical address of parent process heap is: ");
   printpa(heap_data);
+  printpa(heap_data1);
   int pid = fork();
   if (pid == 0) {
     printu("the physical address of child process heap before copy on write is: ");
     printpa(heap_data);
+    printpa(heap_data1);
     heap_data[0] = 0;
+    heap_data1[0] = 0;
     printu("the physical address of child process heap after copy on write is: ");
     printpa(heap_data);
+    printpa(heap_data1);
   }
   exit(0);
   return 0;

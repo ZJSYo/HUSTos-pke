@@ -59,6 +59,13 @@ typedef struct process_heap_manager {
   uint64 free_pages_address[MAX_HEAP_PAGES];
   // the number of free pages in the heap
   uint32 free_pages_count;
+
+  // the number of sons who are sharing the heap with this process
+  int son_count;
+
+  // 是否已经复制了
+  int copied;
+
 }process_heap_manager;
 
 // the extremely simple definition of process, used for begining labs of PKE
@@ -89,6 +96,8 @@ typedef struct process_t {
 
   // accounting. added @lab3_3
   int tick_count;
+
+  
 }process;
 
 // switch to run user app
@@ -105,5 +114,7 @@ int do_fork(process* parent);
 
 // current running process
 extern process* current;
+void do_copy_to_sons(process *parent);
+void copy_on_write(process * parent,process * child);
 
 #endif
