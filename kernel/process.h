@@ -60,11 +60,6 @@ typedef struct process_heap_manager {
   // the number of free pages in the heap
   uint32 free_pages_count;
 
-  // the number of sons who are sharing the heap with this process
-  int son_count;
-
-  // 是否已经复制了
-  int copied;
 
 }process_heap_manager;
 
@@ -114,7 +109,7 @@ int do_fork(process* parent);
 
 // current running process
 extern process* current;
-void do_copy_to_sons(process *parent);
-void copy_on_write(process * parent,process * child);
+
+void copy_on_write_on_heap(process * child,process * parent,uint64 pa);
 
 #endif

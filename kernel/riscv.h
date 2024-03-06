@@ -200,8 +200,7 @@ static inline void flush_tlb(void) { asm volatile("sfence.vma zero, zero"); }
 #define PTE_G (1L << 5)  // global
 #define PTE_A (1L << 6)  // accessed
 #define PTE_D (1L << 7)  // dirty
-#define PTE_RSW_0 (1L << 8)
-#define PTE_RSW_1 (1L << 9)
+#define PTE_C (1L << 8)
 
 
 // shift a physical address to the right place for a PTE.

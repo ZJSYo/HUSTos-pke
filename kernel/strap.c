@@ -54,26 +54,22 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval) {
     sprint("handle_page_fault: %lx\n", stval);
     switch (mcause) {
         case CAUSE_STORE_PAGE_FAULT:
-            // TODO (lab2_3): implement the operations that solve the page fault to
-            // dynamically increase application stack.
-            // hint: first allocate a new physical page, and then, maps the new page to the
-            // virtual address that causes the page fault.
           {
             pte_t * pte = page_walk((pagetable_t)current->pagetable, stval, 0);
-            if(pte == 0) { //说明并没有进行映射，不是子进程heap
+            if(pte == 0) { // 缺页异常
               // sprint("page fault without mapping\n");
               void * pa = alloc_page();
               user_vm_map((pagetable_t)current->pagetable, stval/(PGSIZE) * (PGSIZE), PGSIZE, (uint64)pa, prot_to_type(PROT_WRITE | PROT_READ, 1));
-            }else {
+            }else { // cow
               // sprint("Heap page fault with mapping\n");
-              if(*pte & PTE_RSW_0){//cow from parent
-                // sprint("cow from parent\n");
-                copy_on_write(current->parent,current);
+              if(*pte & PTE_C){//cow from parent
+                uint64 pa = PTE2PA(*pte);
+                copy_on_write_on_heap(current,current->parent,pa);
               }else{// cow to childs
                 // sprint("cow to childs\n");
-                do_copy_to_sons(current);
-                *pte &= ~PTE_RSW_1;
-                *pte |= PTE_W;
+                // do_copy_to_sons(current);
+          
+                // *pte |= PTE_W;
               }
             }
             break;
