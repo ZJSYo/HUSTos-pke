@@ -40,7 +40,7 @@ void load_user_program(process *proc) {
        int hart_id = read_tp();
   sprint("hartid = %d: User application is loading.\n",hart_id);
   
-  
+  g_ufree_page[hart_id] = USER_FREE_ADDRESS_START;
   // allocate a page to store the trapframe. alloc_page is defined in kernel/pmm.c. added @lab2_1
   proc->trapframe = (trapframe *)alloc_page();
   memset(proc->trapframe, 0, sizeof(trapframe));
