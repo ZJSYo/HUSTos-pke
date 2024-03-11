@@ -75,7 +75,8 @@ process* load_user_program() {
   size_t argc = parse_args(&arg_bug_msg);
   if (!argc) panic("You need to specify the application program!\n");
 
-  load_bincode_from_host_elf(proc, arg_bug_msg.argv[0]);
+  // load_bincode_from_host_elf(proc, arg_bug_msg.argv[0]);
+  vfs_load_bincode_from_elf(proc,arg_bug_msg.argv[0]);//加载elf文件
   return proc;
 }
 

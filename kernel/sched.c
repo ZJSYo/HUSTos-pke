@@ -6,7 +6,7 @@
 #include "spike_interface/spike_utils.h"
 
 process* ready_queue_head = NULL;
-
+process* blocked_queue_head = NULL;
 //
 // insert a process, proc, into the END of ready queue.
 //
@@ -32,6 +32,26 @@ void insert_to_ready_queue( process* proc ) {
   proc->status = READY;
   proc->queue_next = NULL;
 
+  return;
+}
+
+void insert_to_blocked_queue( process* proc ){
+   sprint( "going to insert process %d to blocked queue.\n", proc->pid );
+  if( blocked_queue_head == NULL ){
+    proc->status = BLOCKED;
+    proc->queue_next = NULL;
+    blocked_queue_head = proc;
+    return;
+  }
+  process *p;
+  for( p=blocked_queue_head; p->queue_next!=NULL; p=p->queue_next )
+    if( p == proc ) return;  //already in queue
+
+
+  if( p==proc ) return;
+  p->queue_next = proc;
+  proc->status = BLOCKED;
+  proc->queue_next = NULL;
   return;
 }
 
@@ -69,5 +89,33 @@ void schedule() {
 
   current->status = RUNNING;
   sprint( "going to schedule process %d to run.\n", current->pid );
+  sprint("info of current process: pid=%d, status=%d\n kstack=%lx,tick_count=%d\n",current->pid,current->status,current->kstack,current->tick_count);
+  for(int i=0;i<current->total_mapped_region;i++){
+    sprint("mapped_info[%d]:va:%ld,npages:%d,seg_type:%d\n",i,current->mapped_info[i].va,current->mapped_info[i].npages,current->mapped_info[i].seg_type);
+  }
   switch_to( current );
+}
+
+void awake_father_process( process* child ){
+    /**
+     * 输入：child--结束的子进程
+     * 功能：唤醒child的被阻塞的父进程
+     */
+    if(blocked_queue_head==NULL) return;//没有被阻塞的进程，直接返回
+    process * waked_proc=NULL;//被唤醒的父进程
+    process * p=blocked_queue_head,*q=NULL;
+    for(;p!=NULL;q=p,p=p->queue_next){//遍历阻塞队列
+        sprint("pid %d\n",p->pid);
+        if(p==child->parent){//找到了child的父进程，将其从阻塞队列中移除，加入就绪队列
+            waked_proc=p;
+            if(q==NULL){//如果是队首
+                blocked_queue_head=p->queue_next;
+            }else{
+                q->queue_next=p->queue_next;
+            }
+            waked_proc->status=READY;
+            insert_to_ready_queue(waked_proc);
+            return;//找到了父进程，直接返回
+        }
+    }
 }

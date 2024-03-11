@@ -180,7 +180,11 @@ int free_process(process *proc) {
     // but for proxy kernel, it (memory leaking) may NOT be a really serious issue,
     // as it is different from regular OS, which needs to run 7x24.
     proc->status = ZOMBIE;
-
+    if(proc->pid==0){
+        sprint("process 0 is going to be reclaimed\n");
+        return 0;
+    }
+    awake_father_process(proc);
     return 0;
 }
 
@@ -253,7 +257,24 @@ int do_fork(process *parent) {
                 child->total_mapped_region++;
                 break;
             }
-
+            // copy the data segment from parent to child
+            case DATA_SEGMENT:{
+                for (int j = 0; j < parent->mapped_info[i].npages; j++)
+                {
+                    uint64 addr = lookup_pa(parent->pagetable, parent->mapped_info[i].va + j * PGSIZE);
+                    char *newaddr = alloc_page();
+                    memcpy(newaddr, (void *)addr, PGSIZE);
+                    map_pages(child->pagetable, parent->mapped_info[i].va + j * PGSIZE, PGSIZE,
+                            (uint64)newaddr, prot_to_type(PROT_WRITE | PROT_READ, 1));
+                }
+                // after mapping, register the vm region (do not delete codes below!)
+                child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
+                child->mapped_info[child->total_mapped_region].npages =
+                    parent->mapped_info[i].npages;
+                child->mapped_info[child->total_mapped_region].seg_type = DATA_SEGMENT;
+                child->total_mapped_region++;
+                break;
+            }
         }
     }
 
@@ -263,4 +284,94 @@ int do_fork(process *parent) {
     insert_to_ready_queue(child);
 
     return child->pid;
+}
+
+
+int do_wait(int pid){
+    int flag = 0;//标志是否找到子进程
+    if(pid==-1){//父进程任意等待一个子进程
+        for(int i=0;i < NPROC;i++){
+            if(procs[i].parent == current ){
+                flag = 1;
+                if(procs[i].status == ZOMBIE){//找到了一个僵尸进程
+                    procs[i].status = FREE;
+                    return procs[i].pid;//返回pid还是i都可以，初始化都一样
+                }
+            }
+        }
+        if(flag==0){
+            return -1;//没有找到子进程
+        }else{//子进程还没有执行完，进入阻塞队列
+            current->status = BLOCKED;
+            insert_to_blocked_queue(current);
+            schedule();
+            return -2;
+        }
+    }else if(pid>=0 && pid< NPROC){//等待特定的子进程
+        if(procs[pid].parent != current) return -1;
+        else{
+            if(procs[pid].status == ZOMBIE) {//找到了一个僵尸进程
+                procs[pid].status = FREE;
+                return procs[pid].pid;//返回pid还是i都可以，初始化都一样
+            }else{
+                current->status = BLOCKED;
+                insert_to_blocked_queue(current);
+                schedule();
+                return -2;
+            }
+        }
+    }else{//pid 非法
+        return -1;
+    }
+    return 0;
+}
+
+// added @lab4_c2
+// reclaim the open-file management data structure of a process.
+// exec会根据读入的可执行文件将'原进程'的数据段、代码段和堆栈段替换。
+int do_exec(char *path)
+{
+  
+
+  // using the vfs interface.
+  elf_ctx elfloader;
+  elf_ctx *ctx = &elfloader;
+  sprint("Application: %s\n", path);
+  struct file *elf_file = vfs_open(path, O_RDONLY);
+
+  if (elf_file == NULL)
+  {
+    panic("Fail on openning the input application program.\n");
+    return -1;
+  }else{
+    sprint("open file successfully.\n");
+  }
+  // read the elf header
+  if (vfs_read(elf_file, (char *)&ctx->ehdr, sizeof(ctx->ehdr)) != sizeof(ctx->ehdr))
+  {
+    panic("error when reading elf header");
+  }else{
+    sprint("read elf header successfully.\n");
+  }
+  // check the signature (magic value) of the elf, if not correct, panic.
+  if (ctx->ehdr.magic != ELF_MAGIC)
+  {
+    panic("error when checking elf magic number");
+  }else{
+    sprint("check elf magic number successfully.\n");
+  }
+  process *p = current;
+  if(elf_change(p, ctx, elf_file) != EL_OK){
+    panic("Fail on loading elf.\n");
+    return -1;
+  }
+  else
+  {
+    sprint("elf_load ok : phnum:%d\n", ctx->ehdr.phnum);
+  }
+  p->trapframe->epc = elfloader.ehdr.entry;
+  // close the vfs file
+  vfs_close(elf_file);
+  sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
+  return 0;
 }
