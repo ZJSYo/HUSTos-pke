@@ -109,9 +109,17 @@ elf_status elf_load(elf_ctx *ctx) {
 //
 // load the elf of user application, by using the spike file interface.
 //
-void load_bincode_from_host_elf(process *p, char *filename) {
-  sprint("Application: %s\n", filename);
+void load_bincode_from_host_elf(process *p) {
+    //检索命令行参数，获得elf文件名
+  arg_buf arg_bug_msg;
 
+  // retrieve command line arguements
+  size_t argc = parse_args(&arg_bug_msg);
+  if (!argc) panic("You need to specify the application program!\n");
+
+  sprint("Application: %s\n", arg_bug_msg.argv[0]);
+
+    //初始化elfloader，并打开elf文件
   //elf loading. elf_ctx is defined in kernel/elf.h, used to track the loading process.
   elf_ctx elfloader;
   // elf_info is defined above, used to tie the elf file and its corresponding process.
@@ -126,6 +134,7 @@ void load_bincode_from_host_elf(process *p, char *filename) {
   if (elf_init(&elfloader, &info) != EL_OK)
     panic("fail to init elfloader.\n");
 
+//加载elf文件
   // load elf. elf_load() is defined above.
   if (elf_load(&elfloader) != EL_OK) panic("Fail on loading elf.\n");
 
