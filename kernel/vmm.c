@@ -187,11 +187,28 @@ void user_vm_unmap(pagetable_t page_dir, uint64 va, uint64 size, int free) {
   // as naive_free reclaims only one page at a time, you only need to consider one page
   // to make user/app_naive_malloc to behave correctly.
 //  panic( "You have to implement user_vm_unmap to free pages using naive_free in lab2_2.\n" );
-    pte_t * pte = page_walk(page_dir,va,0);
-    if(pte == 0) return;//过滤掉无效的pte
-    void * pa = (void *)PTE2PA(*pte);  //获取pte对应的物理地址
-    *pte = *pte & (~PTE_V);  //将V位清零
-    free_page(pa);
+    // pte_t * pte = page_walk(page_dir,va,0);
+    // if(pte == 0) return;//过滤掉无效的pte
+    // void * pa = (void *)PTE2PA(*pte);  //获取pte对应的物理地址
+    // *pte = *pte & (~PTE_V);  //将V位清零
+    // free_page(pa);
+    for(uint64 first = ROUNDDOWN(va, PGSIZE), last = ROUNDDOWN(va + size - 1, PGSIZE); first <= last; first += PGSIZE) {
+    pagetable_t pt = page_dir;
+    pte_t *pte;
+
+    for(int level = 2; level >= 0; level--) {
+      pte = pt + PX(level, first);
+      if(((*pte) & PTE_V) == 0) {
+        panic("unmap invalid addr!\n");
+        return;
+      }
+      pt = (pagetable_t)PTE2PA(*pte);
+    }
+    *pte &= ~PTE_V;
+    if(free) {
+      free_page((void *)PTE2PA(*pte));
+    }
+  }
 }
 
 //

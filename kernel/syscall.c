@@ -34,7 +34,7 @@ ssize_t sys_user_print(const char* buf, size_t n) {
 //
 ssize_t sys_user_exit(uint64 code) {
   sprint("User exit with code:%d.\n", code);
-  sprint("process %d exit.\n", current->pid);
+  // sprint("process %d exit.\n", current->pid);
   // reclaim the current process, and reschedule. added @lab3_1
   free_process( current );
   schedule();
@@ -221,7 +221,7 @@ ssize_t sys_user_wait(int pid) {
 }
 ssize_t sys_user_exec(char *path, char *para)
 {
-  sprint("process %d call exec\n", current->pid);
+  // sprint("process %d call exec\n", current->pid);
   // 将用户虚拟地址转换为物理地址
   char *ppath = (char *)user_va_to_pa((pagetable_t)(current->pagetable), (void *)path);
   char *ppara = (char *)user_va_to_pa((pagetable_t)(current->pagetable), (void *)para);
@@ -229,7 +229,7 @@ ssize_t sys_user_exec(char *path, char *para)
   char para_new[100];
   strcpy(para_new, ppara);
   // 执行程序
-  sprint("*** exec ***\n");
+  // sprint("*** exec ***\n");
   do_exec(ppath);
   // 分配用于参数数组的内存
   char **argv_va = (char **)sys_user_allocate_page();

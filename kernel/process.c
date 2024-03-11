@@ -37,9 +37,10 @@ process *current = NULL;
 // switch to a user-mode process
 //
 void switch_to(process *proc) {
+    // sprint("switch_to process %d.\n", proc->pid);
     assert(proc);
     current = proc;
-
+    
     // write the smode_trap_vector (64-bit func. address) defined in kernel/strap_vector.S
     // to the stvec privilege register, such that trap handler pointed by smode_trap_vector
     // will be triggered when an interrupt occurs in S mode.
@@ -49,8 +50,7 @@ void switch_to(process *proc) {
     // the process next re-enters the kernel.
     proc->trapframe->kernel_sp = proc->kstack;      // process's kernel stack
     proc->trapframe->kernel_satp = read_csr(satp);  // kernel page table
-    proc->trapframe->kernel_trap = (uint64)
-    smode_trap_handler;
+    proc->trapframe->kernel_trap = (uint64)smode_trap_handler;
 
     // SSTATUS_SPP and SSTATUS_SPIE are defined in kernel/riscv.h
     // set S Previous Privilege mode (the SSTATUS_SPP bit in sstatus register) to User mode.
@@ -65,11 +65,12 @@ void switch_to(process *proc) {
     write_csr(sepc, proc->trapframe->epc);
 
     // make user page table. macro MAKE_SATP is defined in kernel/riscv.h. added @lab2_1
-    uint64
-    user_satp = MAKE_SATP(proc->pagetable);
+    uint64 user_satp = MAKE_SATP(proc->pagetable);
 
     // return_to_user() is defined in kernel/strap_vector.S. switch to user mode with sret.
     // note, return_to_user takes two parameters @ and after lab2_1.
+    // sprint("process %d is going to be switched to user mode.\n", proc->pid);
+    // sprint("user_satp: 0x%lx\n", user_satp);
     return_to_user(proc->trapframe, user_satp);
 }
 
@@ -181,7 +182,7 @@ int free_process(process *proc) {
     // as it is different from regular OS, which needs to run 7x24.
     proc->status = ZOMBIE;
     if(proc->pid==0){
-        sprint("process 0 is going to be reclaimed\n");
+        // sprint("process 0 is going to be reclaimed\n");
         return 0;
     }
     awake_father_process(proc);
@@ -255,6 +256,9 @@ int do_fork(process *parent) {
                         parent->mapped_info[i].npages;
                 child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
                 child->total_mapped_region++;
+                // do_fork map code segment at pa:### of parent to child at va:###
+                sprint("do_fork map code segment at pa:%lx of parent to child at va:%lx.\n", child_pa, child_va);
+
                 break;
             }
             // copy the data segment from parent to child
@@ -343,32 +347,35 @@ int do_exec(char *path)
   {
     panic("Fail on openning the input application program.\n");
     return -1;
-  }else{
-    sprint("open file successfully.\n");
   }
+//   else{
+//     sprint("open file successfully.\n");
+//   }
   // read the elf header
   if (vfs_read(elf_file, (char *)&ctx->ehdr, sizeof(ctx->ehdr)) != sizeof(ctx->ehdr))
   {
     panic("error when reading elf header");
-  }else{
-    sprint("read elf header successfully.\n");
   }
+//   else{
+//     sprint("read elf header successfully.\n");
+//   }
   // check the signature (magic value) of the elf, if not correct, panic.
   if (ctx->ehdr.magic != ELF_MAGIC)
   {
     panic("error when checking elf magic number");
-  }else{
-    sprint("check elf magic number successfully.\n");
   }
+//   else{
+//     sprint("check elf magic number successfully.\n");
+//   }
   process *p = current;
   if(elf_change(p, ctx, elf_file) != EL_OK){
     panic("Fail on loading elf.\n");
     return -1;
   }
-  else
-  {
-    sprint("elf_load ok : phnum:%d\n", ctx->ehdr.phnum);
-  }
+//   else
+//   {
+//     sprint("elf_load ok : phnum:%d\n", ctx->ehdr.phnum);
+//   }
   p->trapframe->epc = elfloader.ehdr.entry;
   // close the vfs file
   vfs_close(elf_file);
