@@ -34,6 +34,9 @@
 //added @lab4_ch3
 #define SYS_user_exec (SYS_user_base + 30)
 #define SYS_user_wait (SYS_user_base + 31)
+
+//added @ChallengeX
+#define SYS_user_scanf (SYS_user_base + 32)
 long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, long a7);
 
 #endif
