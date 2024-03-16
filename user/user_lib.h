@@ -38,4 +38,9 @@ int wait(int pid);
 //added @challengeX
 int scanu(const char *s, ...);
 
+//added cd & pwd
+void pwd(char * path);
+void cd(const char *path);
+
+
 #endif

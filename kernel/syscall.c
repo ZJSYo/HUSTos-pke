@@ -259,6 +259,23 @@ ssize_t sys_user_scan(const char *buf)
   return 0;
 }
 
+
+//
+// lib call to read cwd
+//
+ssize_t sys_user_read_cwd(char *pathva){
+    char * pathpa = (char*)user_va_to_pa((pagetable_t)(current->pagetable), pathva);//得到物理地址z
+    return do_read_cwd(pathpa);
+}
+
+//
+//lib call to change cwd
+//
+ssize_t sys_user_change_cwd(char *pathva){
+    char * pathpa = (char*)user_va_to_pa((pagetable_t)(current->pagetable), pathva);
+    return do_change_cwd(pathpa);
+}
+
 //
 // [a0]: the syscall number; [a1] ... [a7]: arguments to the syscalls.
 // returns the code of success, (e.g., 0 means success, fail for otherwise)
@@ -313,6 +330,10 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
       return sys_user_exec((char *)a1, (char *)a2);
     case SYS_user_scanf:
       return sys_user_scan((const char*)a1);
+    case SYS_user_read_cwd:
+      return sys_user_read_cwd((char *)a1);
+    case SYS_user_change_cwd:
+      return sys_user_change_cwd((char *)a1);
     default:
       panic("Unknown syscall %ld \n", a0);
   }

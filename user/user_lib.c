@@ -193,3 +193,19 @@ int scanu(const char* s, ...) {
   va_end(vl);
   return res;
 }
+int read_cwd(char *path) {
+  return do_user_call(SYS_user_read_cwd, (uint64)path, 0, 0, 0, 0, 0, 0);
+}
+
+int change_cwd(const char *path) {
+  return do_user_call(SYS_user_change_cwd, (uint64)path, 0, 0, 0, 0, 0, 0);
+}
+
+void pwd(char *path){
+    read_cwd(path);
+}
+void cd(const char *path) {
+  if (change_cwd(path) != 0)
+    printu("cd failed\n");
+}
+

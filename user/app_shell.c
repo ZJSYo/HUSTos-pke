@@ -8,46 +8,97 @@
 #include "util/types.h"
 
 int main(int argc, char *argv[]) {
-  printu("\n======== Shell Start ========\n\n");
-  int fd;
-  int MAXBUF = 1024;
-  char buf[MAXBUF];
-  char *token;
-  char delim[3] = " \n";
-  fd = open("/shellrc", O_RDONLY);
-
-  read_u(fd, buf, MAXBUF);
-  close(fd);
-  char *command = naive_malloc();
-  char *para = naive_malloc();
-  int start = 0;
-  while (1)
-  {
-    if(!start) {
-      token = strtok(buf, delim);
-      start = 1;
+  printu("\n======== HUST-PKE Shell Start ========\n\n");
+  char command[128], para[128], cwd[128];
+  char username[128] = "root";
+  char password[128] = "123456";
+  char input_username[128], input_password[128];
+  int cnt = 0;
+  while(1){
+    printu("Please input username: ");
+    scanu("%s", input_username);
+    if(strcmp(input_username, username) != 0){
+      printu("Username not exist!\n");
+      if(++cnt >= 3){
+        printu("You have tried too many times!\n");
+        exit(0);
+      }
     }
-    else 
-      token = strtok(NULL, delim);
-    strcpy(command, token);
-    token = strtok(NULL, delim);
-    strcpy(para, token);
-    if(strcmp(command, "END") == 0 && strcmp(para, "END") == 0)
+    else{
       break;
-    printu("Next command: %s %s\n\n", command, para);
-    printu("==========Command Start============\n\n");
-    int pid = fork();
-    if(pid == 0) {
-      int ret = exec(command, para);
-      if (ret == -1)
-      printu("exec failed!\n");
-    }
-    else
-    {
-      wait(pid);
-      printu("==========Command End============\n\n");
     }
   }
+  cnt = 0;
+  while(1){
+    printu("Please input password: ");
+    scanu("%s", input_password);
+    if(strcmp(input_password, password) != 0){
+      printu("Password not correct!\n");
+      if(++cnt >= 3){
+        printu("You have tried too many times!\n");
+        exit(0);
+      }
+    }
+    else{
+      break;
+    }
+  }
+  printu("\n======== Login Success:Last login: Wed Mar 13 08:43:43 2024 from 10.21.184.196========\n\n");
+  while (1){
+    pwd(cwd);
+    printu("[%s@localhost %s]$ ", username,cwd);
+    scanu("%s %s", command, para);
+    if (strcmp("q", command) == 0) // quit shell
+    {
+      break;
+    }else if(strcmp("pwd", command) == 0){
+      pwd(cwd);
+      printu("%s\n", cwd);
+    }else if(strcmp("cd", command) == 0){
+      cd(para);
+    }else{
+      printu("Command not found!\n");
+    }
+  }
+  // int fd;
+  // int MAXBUF = 1024;
+  // char buf[MAXBUF];
+  // char *token;
+  // char delim[3] = " \n";
+  // fd = open("/shellrc", O_RDONLY);
+
+  // read_u(fd, buf, MAXBUF);
+  // close(fd);
+  // char *command = naive_malloc();
+  // char *para = naive_malloc();
+  // int start = 0;
+  // while (1)
+  // {
+  //   if(!start) {
+  //     token = strtok(buf, delim);
+  //     start = 1;
+  //   }
+  //   else 
+  //     token = strtok(NULL, delim);
+  //   strcpy(command, token);
+  //   token = strtok(NULL, delim);
+  //   strcpy(para, token);
+  //   if(strcmp(command, "END") == 0 && strcmp(para, "END") == 0)
+  //     break;
+  //   printu("Next command: %s %s\n\n", command, para);
+  //   printu("==========Command Start============\n\n");
+  //   int pid = fork();
+  //   if(pid == 0) {
+  //     int ret = exec(command, para);
+  //     if (ret == -1)
+  //     printu("exec failed!\n");
+  //   }
+  //   else
+  //   {
+  //     wait(pid);
+  //     printu("==========Command End============\n\n");
+  //   }
+  // }
   exit(0);
   return 0;
 }

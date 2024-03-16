@@ -37,6 +37,11 @@
 
 //added @ChallengeX
 #define SYS_user_scanf (SYS_user_base + 32)
+
+//added cd & pwd
+#define SYS_user_change_cwd (SYS_user_base + 33)
+#define SYS_user_read_cwd (SYS_user_base + 34)
+
 long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, long a7);
 
 #endif

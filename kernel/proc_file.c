@@ -14,7 +14,47 @@
 #include "spike_interface/spike_utils.h"
 #include "util/functions.h"
 #include "util/string.h"
-
+static void transfer_2_absolute_path(char * relative_path,char * absolute_path){
+    /**
+     * 考虑两种相对路径：'.' - 1 和'..' - 2
+     * 通过获取当前进程的cwd，然后逐级向上查找，直到根目录，得到父目录的绝对路径
+     * 在和相对路径拼接，得到绝对路径
+     */
+//     sprint("relative_path:%s\n",relative_path);
+    int type = 0;
+    struct dentry * cwd = current->pfiles->cwd;
+    if(relative_path[0] == '.'){
+        type = 1;
+        if(relative_path[1] == '.'){//相对路径为'../*'，则需要返回上一级目录
+            type = 2;
+            cwd = cwd->parent;
+        }
+    }
+    for(;cwd;cwd=cwd->parent){
+        char tmp[MAX_DEVICE_NAME_LEN];
+        memset(tmp,0,MAX_DEVICE_NAME_LEN);
+        memcpy(tmp,absolute_path, strlen(absolute_path));
+        memset(absolute_path,0,MAX_DEVICE_NAME_LEN);
+        memcpy(absolute_path,cwd->name,strlen(cwd->name));
+        if(cwd->parent){//如果不是根目录，则需要加上'/'
+            absolute_path[strlen(cwd->name)] = '/';
+            absolute_path[strlen(cwd->name)+1] = '\0';
+        }
+        strcat(absolute_path,tmp);
+//        sprint("absolute_path:%s\n",absolute_path);
+    }
+    switch (type) {
+        case 1:
+            strcat(absolute_path,relative_path+2);//相对路径为'./'，则需要去掉'./'
+            break;
+        case 2:
+            strcat(absolute_path,relative_path+3);//相对路径为'../'，则需要去掉'../'
+            break;
+        default:
+            strcat(absolute_path,relative_path);//路径为'/'，则不需要去掉
+            break;
+    }
+}
 //
 // initialize file system
 //
@@ -220,4 +260,33 @@ int do_link(char *oldpath, char *newpath) {
 //
 int do_unlink(char *path) {
   return vfs_unlink(path);
+}
+
+int do_read_cwd(char *pathpa) {
+    memset(pathpa, '\0', MAX_DEVICE_NAME_LEN);
+    struct dentry *cwd = current->pfiles->cwd;
+    if(cwd == NULL) panic("read cwd failed! cwd is NULL\n");
+    else if(cwd->parent==NULL){
+        strcpy(pathpa,"/");
+        return 0;
+    }else {
+        char absolute_path[MAX_DEVICE_NAME_LEN];
+        memset(absolute_path, '\0', MAX_DEVICE_NAME_LEN);
+        transfer_2_absolute_path(pathpa, absolute_path);
+        strcpy(pathpa, absolute_path);
+        pathpa[strlen(pathpa) - 1] = '\0';//TODO
+    }
+
+    return 0;
+}
+
+int do_change_cwd(char *pathpa) {
+    char absolute_path[MAX_DEVICE_NAME_LEN];
+    memset(absolute_path,0,MAX_DEVICE_NAME_LEN);
+    transfer_2_absolute_path(pathpa,absolute_path);
+    int found = do_opendir(absolute_path);
+    current->pfiles->cwd = current->pfiles->opened_files[found].f_dentry;//实现change cwd
+    do_closedir(found);
+
+    return 0;
 }
