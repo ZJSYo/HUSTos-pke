@@ -21,8 +21,14 @@ static void transfer_2_absolute_path(char * relative_path,char * absolute_path){
      * 在和相对路径拼接，得到绝对路径
      */
 //     sprint("relative_path:%s\n",relative_path);
+    if(relative_path[0] == '/'){
+        memcpy(absolute_path,relative_path,strlen(relative_path));
+        return;
+    }
+  
     int type = 0;
     struct dentry * cwd = current->pfiles->cwd;
+    sprint("cwd:%s\n",cwd->name);
     if(relative_path[0] == '.'){
         type = 1;
         if(relative_path[1] == '.'){//相对路径为'../*'，则需要返回上一级目录
@@ -86,7 +92,7 @@ proc_file_management *init_proc_file_management(void) {
   for (int fd = 0; fd < MAX_FILES; ++fd)
     pfiles->opened_files[fd].status = FD_NONE;
 
-  sprint("FS: created a file management struct for a process.\n");
+  // sprint("FS: created a file management struct for a process.\n");
   return pfiles;
 }
 
@@ -206,8 +212,14 @@ int do_close(int fd) {
 // return: the fd of the directory file
 //
 int do_opendir(char *pathname) {
+  sprint("do_opendir: %s\n", pathname);
   struct file *opened_file = NULL;
-  if ((opened_file = vfs_opendir(pathname)) == NULL) return -1;
+  if ((opened_file = vfs_opendir(pathname)) == NULL){
+      sprint("open dir failed\n");
+      return -1;
+  }else{
+      sprint("open dir success\n");
+  }
 
   int fd = 0;
   struct file *pfile;
@@ -267,12 +279,14 @@ int do_read_cwd(char *pathpa) {
     struct dentry *cwd = current->pfiles->cwd;
     if(cwd == NULL) panic("read cwd failed! cwd is NULL\n");
     else if(cwd->parent==NULL){
+        sprint("do_read_cwd: cwd is root\n");
         strcpy(pathpa,"/");
         return 0;
     }else {
         char absolute_path[MAX_DEVICE_NAME_LEN];
         memset(absolute_path, '\0', MAX_DEVICE_NAME_LEN);
         transfer_2_absolute_path(pathpa, absolute_path);
+        sprint("do_read_cwd: absolute_path:%s\n", absolute_path);
         strcpy(pathpa, absolute_path);
         pathpa[strlen(pathpa) - 1] = '\0';//TODO
     }
@@ -286,6 +300,7 @@ int do_change_cwd(char *pathpa) {
     transfer_2_absolute_path(pathpa,absolute_path);
     int found = do_opendir(absolute_path);
     current->pfiles->cwd = current->pfiles->opened_files[found].f_dentry;//实现change cwd
+    sprint("do_change_cwd:current->pfiles->cwd:%s\n",current->pfiles->cwd->name);
     do_closedir(found);
 
     return 0;

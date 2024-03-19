@@ -119,10 +119,10 @@ elf_status elf_load(elf_ctx *ctx) {
     // SEGMENT_READABLE, SEGMENT_EXECUTABLE, SEGMENT_WRITABLE are defined in kernel/elf.h
     if( ph_addr.flags == (SEGMENT_READABLE|SEGMENT_EXECUTABLE) ){
       ((process*)(((elf_info*)(ctx->info))->p))->mapped_info[j].seg_type = CODE_SEGMENT;
-      sprint( "CODE_SEGMENT added at mapped info offset:%d\n", j );
+      // sprint( "CODE_SEGMENT added at mapped info offset:%d\n", j );
     }else if ( ph_addr.flags == (SEGMENT_READABLE|SEGMENT_WRITABLE) ){
       ((process*)(((elf_info*)(ctx->info))->p))->mapped_info[j].seg_type = DATA_SEGMENT;
-      sprint( "DATA_SEGMENT added at mapped info offset:%d\n", j );
+      // sprint( "DATA_SEGMENT added at mapped info offset:%d\n", j );
     }else
       panic( "unknown program segment encountered, segment flag:%d.\n", ph_addr.flags );
 
@@ -163,10 +163,10 @@ elf_status vfs_elf_load(process *p, elf_ctx *ctx, struct file *elf_file) {
     // SEGMENT_READABLE, SEGMENT_EXECUTABLE, SEGMENT_WRITABLE are defined in kernel/elf.h
     if( ph_addr.flags == (SEGMENT_READABLE|SEGMENT_EXECUTABLE) ){
       p->mapped_info[j].seg_type = CODE_SEGMENT;
-      sprint( "CODE_SEGMENT added at mapped info offset:%d\n", j );
+      // sprint( "CODE_SEGMENT added at mapped info offset:%d\n", j );
     }else if ( ph_addr.flags == (SEGMENT_READABLE|SEGMENT_WRITABLE) ){
       p->mapped_info[j].seg_type = DATA_SEGMENT;
-      sprint( "DATA_SEGMENT added at mapped info offset:%d\n", j );
+      // sprint( "DATA_SEGMENT added at mapped info offset:%d\n", j );
     }else
       panic( "unknown program segment encountered, segment flag:%d.\n", ph_addr.flags );
 
@@ -298,7 +298,7 @@ elf_status elf_change(process *p, elf_ctx *ctx, struct file *file){
       {
         if (p->mapped_info[j].seg_type == CODE_SEGMENT)
         {
-          sprint("CODE_SEGMENT added at mapped info offset:%d\n", j);
+          // sprint("CODE_SEGMENT added at mapped info offset:%d\n", j);
           // 释放原来的代码段
           user_vm_unmap(p->pagetable, p->mapped_info[j].va, PGSIZE, 0);
           // 重新映射新的代码段
@@ -320,7 +320,7 @@ elf_status elf_change(process *p, elf_ctx *ctx, struct file *file){
       {
         if (p->mapped_info[j].seg_type == DATA_SEGMENT)
         {
-          sprint("DATA_SEGMENT added at mapped info offset:%d\n", j);
+          // sprint("DATA_SEGMENT added at mapped info offset:%d\n", j);
           // 释放原来的数据段
           user_vm_unmap((pagetable_t)p->pagetable, p->mapped_info[j].va, PGSIZE, 1);
           // 重新映射新的数据段
@@ -344,7 +344,7 @@ elf_status elf_change(process *p, elf_ctx *ctx, struct file *file){
         {
           if (p->mapped_info[j].va == 0)
           {
-            sprint("DATA_SEGMENT added at mapped info offset:%d\n", j);
+            // sprint("DATA_SEGMENT added at mapped info offset:%d\n", j);
             p->mapped_info[j].npages = 1;
             p->mapped_info[j].va = ph_addr.vaddr;
             p->mapped_info[j].seg_type = DATA_SEGMENT;

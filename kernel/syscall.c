@@ -18,6 +18,60 @@
 
 #include "spike_interface/spike_utils.h"
 
+
+
+static void transfer_2_absolute_path(char * relative_path,char * absolute_path){
+    /**
+     * 考虑两种相对路径：'.' - 1 和'..' - 2
+     * 通过获取当前进程的cwd，然后逐级向上查找，直到根目录，得到父目录的绝对路径
+     * 在和相对路径拼接，得到绝对路径
+     */
+//     sprint("relative_path:%s\n",relative_path);
+    if(relative_path[0] == '/'){
+        memcpy(absolute_path,relative_path,strlen(relative_path));
+        return;
+    }else{
+      sprint("the relative path is not start with '/'\n");
+    }
+    int type = 0;
+    struct dentry * cwd = current->pfiles->cwd;
+    sprint("***cwd:%s***\n",cwd->name);
+    if(relative_path[0] == '.'){
+        type = 1;
+        if(relative_path[1] == '.'){//相对路径为'../*'，则需要返回上一级目录
+            type = 2;
+            cwd = cwd->parent;
+        }
+    }
+    for(;cwd;cwd=cwd->parent){
+        char tmp[MAX_DEVICE_NAME_LEN];
+        memset(tmp,0,MAX_DEVICE_NAME_LEN);
+        memcpy(tmp,absolute_path, strlen(absolute_path));
+        memset(absolute_path,0,MAX_DEVICE_NAME_LEN);
+        memcpy(absolute_path,cwd->name,strlen(cwd->name));
+        if(cwd->parent){//如果不是根目录，则需要加上'/'
+            absolute_path[strlen(cwd->name)] = '/';
+            absolute_path[strlen(cwd->name)+1] = '\0';
+        }
+        strcat(absolute_path,tmp);
+//        sprint("absolute_path:%s\n",absolute_path);
+    }
+    switch (type) {
+        case 1:
+            strcat(absolute_path,relative_path+2);//相对路径为'./'，则需要去掉'./'
+            break;
+        case 2:
+            strcat(absolute_path,relative_path+3);//相对路径为'../'，则需要去掉'../'
+            break;
+        default:
+            sprint("absolute_path:%s\n",absolute_path);
+            sprint("relative_path:%s\n",relative_path);
+            strcat(absolute_path,relative_path);//路径为'/'，则不需要去掉
+            break;
+    }
+}
+
+
 //
 // implement the SYS_user_print syscall
 //
@@ -79,8 +133,8 @@ uint64 sys_user_free_page(uint64 va) {
 //
 // kerenl entry point of naive_fork
 //
-ssize_t sys_user_fork() {
-  sprint("User call fork.\n");
+ssize_t sys_user_fork(){
+  // sprint("User call fork.\n");
   return do_fork( current );
 }
 
@@ -222,16 +276,27 @@ ssize_t sys_user_wait(int pid) {
 }
 ssize_t sys_user_exec(char *path, char *para)
 {
-  // sprint("process %d call exec\n", current->pid);
   // 将用户虚拟地址转换为物理地址
   char *ppath = (char *)user_va_to_pa((pagetable_t)(current->pagetable), (void *)path);
   char *ppara = (char *)user_va_to_pa((pagetable_t)(current->pagetable), (void *)para);
+  sprint("exec relative path:%s para:%s\n",ppath,ppara);
+  char absolute_path[MAX_DEVICE_NAME_LEN*2];
+  char absolute_para[MAX_DEVICE_NAME_LEN*2];
+  transfer_2_absolute_path(ppath, absolute_path);
+  transfer_2_absolute_path(ppara, absolute_para);
+  sprint("exec absolute path:%s absolute para:%s\n",absolute_path,absolute_para);
   // 处理程序参数
   char para_new[100];
-  strcpy(para_new, ppara);
+  strcpy(para_new, absolute_para);
+  
   // 执行程序
   // sprint("*** exec ***\n");
-  do_exec(ppath);
+  int ret = do_exec(absolute_path);
+  if (ret < 0)
+  {
+    sprint("exec failed\n");
+    return -1;
+  }
   // 分配用于参数数组的内存
   char **argv_va = (char **)sys_user_allocate_page();
   // 分配用于第一个参数字符串的内存
@@ -265,6 +330,7 @@ ssize_t sys_user_scan(const char *buf)
 //
 ssize_t sys_user_read_cwd(char *pathva){
     char * pathpa = (char*)user_va_to_pa((pagetable_t)(current->pagetable), pathva);//得到物理地址z
+    sprint("pathpa:%s\n",pathpa);
     return do_read_cwd(pathpa);
 }
 

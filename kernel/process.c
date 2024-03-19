@@ -149,8 +149,8 @@ process *alloc_process() {
     procs[i].mapped_info[SYSTEM_SEGMENT].npages = 1;
     procs[i].mapped_info[SYSTEM_SEGMENT].seg_type = SYSTEM_SEGMENT;
 
-    sprint("in alloc_proc. user frame 0x%lx, user stack 0x%lx, user kstack 0x%lx \n",
-           procs[i].trapframe, procs[i].trapframe->regs.sp, procs[i].kstack);
+    // sprint("in alloc_proc. user frame 0x%lx, user stack 0x%lx, user kstack 0x%lx \n",
+        //    procs[i].trapframe, procs[i].trapframe->regs.sp, procs[i].kstack);
 
     // initialize the process's heap manager
     procs[i].user_heap.heap_top = USER_FREE_ADDRESS_START;
@@ -166,7 +166,7 @@ process *alloc_process() {
 
   // initialize files_struct
   procs[i].pfiles = init_proc_file_management();
-  sprint("in alloc_proc. build proc_file_management successfully.\n");
+//   sprint("in alloc_proc. build proc_file_management successfully.\n");
 
   // return after initialization.
   return &procs[i];
@@ -197,7 +197,7 @@ int free_process(process *proc) {
 // for the child.
 //
 int do_fork(process *parent) {
-    sprint("will fork a child from parent %d.\n", parent->pid);
+    // sprint("will fork a child from parent %d.\n", parent->pid);
     process *child = alloc_process();
 
     for (int i = 0; i < parent->total_mapped_region; i++) {
@@ -257,7 +257,7 @@ int do_fork(process *parent) {
                 child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
                 child->total_mapped_region++;
                 // do_fork map code segment at pa:### of parent to child at va:###
-                sprint("do_fork map code segment at pa:%lx of parent to child at va:%lx.\n", child_pa, child_va);
+                // sprint("do_fork map code segment at pa:%lx of parent to child at va:%lx.\n", child_pa, child_va);
 
                 break;
             }
@@ -285,7 +285,13 @@ int do_fork(process *parent) {
     child->status = READY;
     child->trapframe->regs.a0 = 0;
     child->parent = parent;
+    //将父进程的pfiles复制给子进程
+    child->pfiles = parent->pfiles;
+    
+
     insert_to_ready_queue(child);
+    sprint("cwd of parent is %s\n", parent->pfiles->cwd->name);
+    sprint("cwd of child is %s\n", child->pfiles->cwd->name);
 
     return child->pid;
 }
@@ -340,7 +346,7 @@ int do_exec(char *path)
   // using the vfs interface.
   elf_ctx elfloader;
   elf_ctx *ctx = &elfloader;
-  sprint("Application: %s\n", path);
+  sprint("Application_exec: %s\n", path);
   struct file *elf_file = vfs_open(path, O_RDONLY);
 
   if (elf_file == NULL)

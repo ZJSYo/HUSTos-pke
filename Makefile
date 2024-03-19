@@ -68,37 +68,37 @@ USER_CPPS 		:= user/app_shell.c user/user_lib.c
 
 USER_OBJS  		:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c,%.o,$(USER_CPPS)))
 
-USER_TARGET 	:= $(HOSTFS_ROOT)/bin/app_shell
+USER_TARGET 	:= $(HOSTFS_ROOT)/bin/shell
 
 USER_E_CPPS 		:= user/app_ls.c user/user_lib.c
 
 USER_E_OBJS  		:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c,%.o,$(USER_E_CPPS)))
 
-USER_E_TARGET 	:= $(HOSTFS_ROOT)/bin/app_ls
+USER_E_TARGET 	:= $(HOSTFS_ROOT)/bin/ls
 
 USER_M_CPPS 		:= user/app_mkdir.c user/user_lib.c
 
 USER_M_OBJS  		:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c,%.o,$(USER_M_CPPS)))
 
-USER_M_TARGET 	:= $(HOSTFS_ROOT)/bin/app_mkdir
+USER_M_TARGET 	:= $(HOSTFS_ROOT)/bin/mkdir
 
 USER_T_CPPS 		:= user/app_touch.c user/user_lib.c
 
 USER_T_OBJS  		:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c,%.o,$(USER_T_CPPS)))
 
-USER_T_TARGET 	:= $(HOSTFS_ROOT)/bin/app_touch
+USER_T_TARGET 	:= $(HOSTFS_ROOT)/bin/touch
 
 USER_C_CPPS 		:= user/app_cat.c user/user_lib.c
 
 USER_C_OBJS  		:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c,%.o,$(USER_C_CPPS)))
 
-USER_C_TARGET 	:= $(HOSTFS_ROOT)/bin/app_cat
+USER_C_TARGET 	:= $(HOSTFS_ROOT)/bin/cat
 
 USER_O_CPPS 		:= user/app_echo.c user/user_lib.c
 
 USER_O_OBJS  		:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c,%.o,$(USER_O_CPPS)))
 
-USER_O_TARGET 	:= $(HOSTFS_ROOT)/bin/app_echo
+USER_O_TARGET 	:= $(HOSTFS_ROOT)/bin/echo
 #------------------------targets------------------------
 $(OBJ_DIR):
 	@-mkdir -p $(OBJ_DIR)	
