@@ -42,5 +42,10 @@ int scanu(const char *s, ...);
 void pwd(char * path);
 void cd(const char *path);
 
+//added lab3_ch2
+int sem_new(int value);
+int sem_P(int sem_id);
+int sem_V(int sem_id);
+
 
 #endif

@@ -209,3 +209,22 @@ void cd(const char *path) {
     printu("cd failed\n");
 }
 
+//
+// lib call to sem_new
+//
+int sem_new(int value){
+    return do_user_call(SYS_user_sem_new, value, 0, 0, 0, 0, 0, 0);
+}
+
+//
+// lib call to sem_P
+//
+int sem_P(int sem_id){
+    return do_user_call(SYS_user_sem_p, sem_id, 0, 0, 0, 0, 0, 0);
+}
+//
+// lib call to sem_V
+//
+int sem_V(int sem_id){
+    return do_user_call(SYS_user_sem_v, sem_id, 0, 0, 0, 0, 0, 0);
+}

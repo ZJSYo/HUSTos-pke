@@ -29,6 +29,7 @@ extern char trap_sec_start[];
 
 // process pool. added @lab3_1
 process procs[NPROC];
+semaphore sem_pool[NPROC];
 
 // current points to the currently running user-mode application.
 process *current = NULL;
@@ -396,4 +397,78 @@ int do_exec(char *path)
   vfs_close(elf_file);
   sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
   return 0;
+}
+
+int do_sem_new(int value){
+    for(int i=0;i<NPROC;i++){
+        if(sem_pool[i].is_occupied==0){
+            //找到了一个空闲的信号量,进行初始化
+            sem_pool[i].is_occupied=1;
+            sem_pool[i].value=value;
+            sem_pool[i].waiting_queue_head = NULL;
+            sem_pool[i].waiting_queue_tail = NULL;
+            return i;
+        }
+    }
+    panic("No available semaphore");
+    return -1;
+}
+int do_sem_p(int sem_id){
+    if(sem_id<0||sem_id>=NPROC){
+        panic("sem_id is illegal");
+        return -1;
+    }
+
+        sem_pool[sem_id].value--;
+    if(sem_pool[sem_id].value<0){
+        //将当前进程加入等待队列
+        if(sem_pool[sem_id].waiting_queue_head==NULL){
+            sem_pool[sem_id].waiting_queue_head=current;
+            sem_pool[sem_id].waiting_queue_tail=current;
+            current->queue_next=NULL;
+        }
+        else{
+            sem_pool[sem_id].waiting_queue_tail->queue_next=current;
+            sem_pool[sem_id].waiting_queue_tail=current;
+            current->queue_next=NULL;
+        }
+        current->status=BLOCKED;//将当前进程状态设置为阻塞
+        schedule();//调度下一个进程
+        return 0;
+    }
+    return 0;
+}
+int do_sem_v(int sem_id){
+    if(sem_id<0||sem_id>=NPROC){
+        panic("sem_id is illegal");
+        return -1;
+    }
+    sem_pool[sem_id].value++;
+    if(sem_pool[sem_id].waiting_queue_head!=NULL){
+        //采用FIFO的方式唤醒等待队列中的进程
+        process* p=sem_pool[sem_id].waiting_queue_head;
+        if(sem_pool[sem_id].waiting_queue_head==sem_pool[sem_id].waiting_queue_tail){
+            sem_pool[sem_id].waiting_queue_head=NULL;
+            sem_pool[sem_id].waiting_queue_tail=NULL;
+        }
+        else{
+            sem_pool[sem_id].waiting_queue_head=p->queue_next;
+        }
+        p->queue_next=NULL;
+        p->status=READY;
+        insert_to_ready_queue(p);
+    }
+    return 0;
+}
+int do_sem_free(int sem_id){
+    if(sem_id<0||sem_id>=NPROC){
+        panic("sem_id is illegal");
+        return -1;
+    }
+    if(sem_pool[sem_id].waiting_queue_head!=NULL){
+        panic("There are still processes waiting for this semaphore");
+        return -1;
+    }
+    sem_pool[sem_id].is_occupied=0;
+    return 0;
 }

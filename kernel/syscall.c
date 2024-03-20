@@ -324,6 +324,16 @@ ssize_t sys_user_scan(const char *buf)
   return 0;
 }
 
+ssize_t sys_sem_new(int value){
+    return do_sem_new(value);
+}
+ssize_t sys_sem_p(int sem_id){
+    return do_sem_p(sem_id);
+}
+ssize_t sys_sem_v(int sem_id){
+    return do_sem_v(sem_id);
+}
+
 
 //
 // lib call to read cwd
@@ -400,6 +410,13 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
       return sys_user_read_cwd((char *)a1);
     case SYS_user_change_cwd:
       return sys_user_change_cwd((char *)a1);
+    case SYS_user_sem_new:
+      return sys_sem_new(a1);
+    case SYS_user_sem_p:
+      return sys_sem_p(a1);
+    case SYS_user_sem_v:
+      return sys_sem_v(a1);
+
     default:
       panic("Unknown syscall %ld \n", a0);
   }
