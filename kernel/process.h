@@ -62,6 +62,16 @@ typedef struct process_heap_manager {
   uint32 free_pages_count;
 }process_heap_manager;
 
+// code file struct, including directory index and file name char pointer
+typedef struct {
+    uint64 dir; char *file;
+} code_file;
+
+// address-line number-file name table
+typedef struct {
+    uint64 addr, line, file;
+} addr_line;
+
 // the extremely simple definition of process, used for begining labs of PKE
 typedef struct process_t {
   // pointing to the stack used in trap handling.
@@ -91,6 +101,9 @@ typedef struct process_t {
   // accounting. added @lab3_3
   int tick_count;
 
+  // added @lab1_challenge2
+  char debugline[32768]; char **dir; code_file *file; addr_line *line; int line_ind;
+  
   // file system. added @lab4_1
   proc_file_management *pfiles;//文件打开表
 }process;

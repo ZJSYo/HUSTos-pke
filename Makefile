@@ -99,6 +99,12 @@ USER_O_CPPS 		:= user/app_echo.c user/user_lib.c
 USER_O_OBJS  		:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c,%.o,$(USER_O_CPPS)))
 
 USER_O_TARGET 	:= $(HOSTFS_ROOT)/bin/echo
+
+USER_O_CPPS 		:= user/app_errorline.c user/user_lib.c
+
+USER_O_OBJS  		:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c,%.o,$(USER_O_CPPS)))
+
+USER_O_TARGET 	:= $(HOSTFS_ROOT)/bin/error_line
 #------------------------targets------------------------
 $(OBJ_DIR):
 	@-mkdir -p $(OBJ_DIR)	
