@@ -3,7 +3,7 @@
 
 #include "riscv.h"
 #include "proc_file.h"
-
+// #include "elf.h"
 typedef struct trapframe_t {
   // space to store context (all common registers)
   /* offset:0   */ riscv_regs regs;
@@ -130,7 +130,7 @@ int do_fork(process* parent);
 
 int do_wait(int pid);
 
-int do_exec(char * path);
+int do_exec(char * path,char * para);
 
 //alloc a new semaphore from pool
 int do_sem_new(int value);
@@ -147,3 +147,4 @@ extern semaphore sem_pool[NPROC];
 // address of the first free page in our simple heap. added @lab2_2
 extern uint64 g_ufree_page;
 #endif
+void init_process(process *p);

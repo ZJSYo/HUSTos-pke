@@ -228,3 +228,6 @@ int sem_P(int sem_id){
 int sem_V(int sem_id){
     return do_user_call(SYS_user_sem_v, sem_id, 0, 0, 0, 0, 0, 0);
 }
+int print_backtrace(int n) {
+  return do_user_call(SYS_user_print_backtrace, n, 0, 0, 0, 0, 0, 0);
+}

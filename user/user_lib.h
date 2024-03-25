@@ -47,5 +47,8 @@ int sem_new(int value);
 int sem_P(int sem_id);
 int sem_V(int sem_id);
 
+//added lab1_ch1
+int print_backtrace(int n);
+
 
 #endif

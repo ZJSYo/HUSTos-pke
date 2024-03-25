@@ -208,9 +208,10 @@ int do_fork(process *parent) {
         // browse parent's vm space, and copy its trapframe and data segments,
         // map its code segment.
         switch (parent->mapped_info[i].seg_type) {
-            case CONTEXT_SEGMENT:
+            case CONTEXT_SEGMENT:{
                 *child->trapframe = *parent->trapframe;
                 break;
+            }
             case STACK_SEGMENT:
                 memcpy((void *) lookup_pa(child->pagetable, child->mapped_info[STACK_SEGMENT].va),
                        (void *) lookup_pa(parent->pagetable, parent->mapped_info[i].va), PGSIZE);
@@ -237,9 +238,7 @@ int do_fork(process *parent) {
 
                     void *child_pa = alloc_page();
                     memcpy(child_pa, (void *) lookup_pa(parent->pagetable, heap_block), PGSIZE);
-                    user_vm_map((pagetable_t) child->pagetable, heap_block, PGSIZE, (uint64)
-                    child_pa,
-                            prot_to_type(PROT_WRITE | PROT_READ, 1));
+                    user_vm_map((pagetable_t) child->pagetable, heap_block, PGSIZE, (uint64) child_pa,prot_to_type(PROT_WRITE | PROT_READ, 1));
                 }
 
                 child->mapped_info[HEAP_SEGMENT].npages = parent->mapped_info[HEAP_SEGMENT].npages;
@@ -260,9 +259,6 @@ int do_fork(process *parent) {
                         parent->mapped_info[i].npages;
                 child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
                 child->total_mapped_region++;
-                // do_fork map code segment at pa:### of parent to child at va:###
-                // sprint("do_fork map code segment at pa:%lx of parent to child at va:%lx.\n", child_pa, child_va);
-
                 break;
             }
             // copy the data segment from parent to child
@@ -299,13 +295,9 @@ int do_fork(process *parent) {
     child->file = parent->file;
     child->line = parent->line;
     child->line_ind = parent->line_ind;
-
-
-
     insert_to_ready_queue(child);
-    sprint("cwd of parent is %s\n", parent->pfiles->cwd->name);
-    sprint("cwd of child is %s\n", child->pfiles->cwd->name);
-
+    // sprint("cwd of parent is %s\n", parent->pfiles->cwd->name);
+    // sprint("cwd of child is %s\n", child->pfiles->cwd->name);
     return child->pid;
 }
 
@@ -349,58 +341,7 @@ int do_wait(int pid){
     return 0;
 }
 
-// added @lab4_c2
-// reclaim the open-file management data structure of a process.
-// exec会根据读入的可执行文件将'原进程'的数据段、代码段和堆栈段替换。
-int do_exec(char *path)
-{
-  
 
-  // using the vfs interface.
-  elf_ctx elfloader;
-  elf_ctx *ctx = &elfloader;
-  sprint("Application_exec: %s\n", path);
-  struct file *elf_file = vfs_open(path, O_RDONLY);
-
-  if (elf_file == NULL)
-  {
-    panic("Fail on openning the input application program.\n");
-    return -1;
-  }
-//   else{
-//     sprint("open file successfully.\n");
-//   }
-  // read the elf header
-  if (vfs_read(elf_file, (char *)&ctx->ehdr, sizeof(ctx->ehdr)) != sizeof(ctx->ehdr))
-  {
-    panic("error when reading elf header");
-  }
-//   else{
-//     sprint("read elf header successfully.\n");
-//   }
-  // check the signature (magic value) of the elf, if not correct, panic.
-  if (ctx->ehdr.magic != ELF_MAGIC)
-  {
-    panic("error when checking elf magic number");
-  }
-//   else{
-//     sprint("check elf magic number successfully.\n");
-//   }
-  process *p = current;
-  if(elf_change(p, ctx, elf_file) != EL_OK){
-    panic("Fail on loading elf.\n");
-    return -1;
-  }
-//   else
-//   {
-//     sprint("elf_load ok : phnum:%d\n", ctx->ehdr.phnum);
-//   }
-  p->trapframe->epc = elfloader.ehdr.entry;
-  // close the vfs file
-  vfs_close(elf_file);
-  sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
-  return 0;
-}
 
 int do_sem_new(int value){
     for(int i=0;i<NPROC;i++){
@@ -474,4 +415,86 @@ int do_sem_free(int sem_id){
     }
     sem_pool[sem_id].is_occupied=0;
     return 0;
+}
+
+void init_process(process *p)
+{
+
+
+  p->trapframe = (trapframe *)alloc_page(); // trapframe, used to save context
+  memset(p->trapframe, 0, sizeof(trapframe));
+
+  
+  p->pagetable = (pagetable_t)alloc_page();
+  memset((void *)p->pagetable, 0, PGSIZE);
+
+  p->kstack = (uint64)alloc_page() + PGSIZE; // user kernel stack top
+  uint64 user_stack = (uint64)alloc_page();        // phisical address of user stack bottom
+  p->trapframe->regs.sp = USER_STACK_TOP;    // virtual address of user stack top
+
+
+  p->mapped_info = (mapped_region *)alloc_page(); //mapped_info
+  memset(p->mapped_info, 0, PGSIZE);
+
+
+  user_vm_map((pagetable_t)p->pagetable, USER_STACK_TOP - PGSIZE, PGSIZE,  // map user stack in userspace
+  user_stack, prot_to_type(PROT_WRITE | PROT_READ, 1));
+  p->mapped_info[STACK_SEGMENT].va = USER_STACK_TOP - PGSIZE;
+  p->mapped_info[STACK_SEGMENT].npages = 1;
+  p->mapped_info[STACK_SEGMENT].seg_type = STACK_SEGMENT;
+
+  // map trapframe in user space (direct mapping as in kernel space).
+  user_vm_map((pagetable_t)p->pagetable, (uint64)p->trapframe, PGSIZE,
+              (uint64)p->trapframe, prot_to_type(PROT_WRITE | PROT_READ, 0));
+  p->mapped_info[CONTEXT_SEGMENT].va = (uint64)p->trapframe;
+  p->mapped_info[CONTEXT_SEGMENT].npages = 1;
+  p->mapped_info[CONTEXT_SEGMENT].seg_type = CONTEXT_SEGMENT;
+
+
+  user_vm_map((pagetable_t)p->pagetable, (uint64)trap_sec_start, PGSIZE,
+              (uint64)trap_sec_start, prot_to_type(PROT_READ | PROT_EXEC, 0));
+  p->mapped_info[SYSTEM_SEGMENT].va = (uint64)trap_sec_start;
+  p->mapped_info[SYSTEM_SEGMENT].npages = 1;
+  p->mapped_info[SYSTEM_SEGMENT].seg_type = SYSTEM_SEGMENT;
+
+
+
+  // heap management
+  p->user_heap.heap_top = USER_FREE_ADDRESS_START;
+  p->user_heap.heap_bottom = USER_FREE_ADDRESS_START;
+  p->user_heap.free_pages_count = 0;
+
+  p->mapped_info[HEAP_SEGMENT].va = USER_FREE_ADDRESS_START;
+  p->mapped_info[HEAP_SEGMENT].npages = 0; // no pages are mapped to heap yet.
+  p->mapped_info[HEAP_SEGMENT].seg_type = HEAP_SEGMENT;
+
+  p->total_mapped_region = 4;
+
+  //file management
+  p->pfiles = init_proc_file_management();
+}
+
+// added @lab4_c2
+// reclaim the open-file management data structure of a process.
+// exec会根据读入的可执行文件将'原进程'的数据段、代码段和堆栈段替换。
+int do_exec(char *path,char * para)
+{
+    init_process(current); 
+    // sprint("user_s0_1 = %lx user_sp = %lx\n", current->trapframe->regs.s0, current->trapframe->regs.sp);
+    load_bincode_from_host_elf(current,path);
+    // sprint("user_s0_2 = %lx user_sp = %lx\n", current->trapframe->regs.s0, current->trapframe->regs.sp);
+  //push into stack
+  size_t *vsp = (size_t *)current->trapframe->regs.sp;
+  vsp -= 8;
+  size_t *sp = (size_t *)user_va_to_pa(current->pagetable, (void *)vsp);
+  memcpy((char *)sp,para, 1 + strlen(para));
+  vsp--, sp--;
+  *sp = (size_t)(1 + vsp);
+
+  // reg
+  current->trapframe->regs.sp = (uint64)vsp;
+  current->trapframe->regs.a0 = (uint64)1;
+  current->trapframe->regs.a1 = (uint64)vsp;
+//   sprint("user_s0_3 = %lx user_sp = %lx\n", current->trapframe->regs.s0, current->trapframe->regs.sp);
+  return 0;
 }

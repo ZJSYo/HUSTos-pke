@@ -14,11 +14,13 @@
 #include "vmm.h"
 #include "sched.h"
 #include "proc_file.h"
+#include "elf.h"
 #include "spike_interface/spike_file.h"
 
 #include "spike_interface/spike_utils.h"
 
 
+extern struct elf_sym_table elf_sym_tab;
 
 static void transfer_2_absolute_path(char * relative_path,char * absolute_path){
     /**
@@ -35,7 +37,7 @@ static void transfer_2_absolute_path(char * relative_path,char * absolute_path){
     }
     int type = 0;
     struct dentry * cwd = current->pfiles->cwd;
-    sprint("***cwd:%s***\n",cwd->name);
+    // sprint("***cwd:%s***\n",cwd->name);
     if(relative_path[0] == '.'){
         type = 1;
         if(relative_path[1] == '.'){//相对路径为'../*'，则需要返回上一级目录
@@ -64,8 +66,8 @@ static void transfer_2_absolute_path(char * relative_path,char * absolute_path){
             strcat(absolute_path,relative_path+3);//相对路径为'../'，则需要去掉'../'
             break;
         default:
-            sprint("absolute_path:%s\n",absolute_path);
-            sprint("relative_path:%s\n",relative_path);
+            // sprint("absolute_path:%s\n",absolute_path);
+            // sprint("relative_path:%s\n",relative_path);
             strcat(absolute_path,relative_path);//路径为'/'，则不需要去掉
             break;
     }
@@ -243,6 +245,7 @@ ssize_t sys_user_readdir(int fd, struct dir *vdir){
 // lib call to mkdir
 //
 ssize_t sys_user_mkdir(char * pathva){
+  sprint("user_s0:%lx\n",current->trapframe->regs.s0);
   char * pathpa = (char*)user_va_to_pa((pagetable_t)(current->pagetable), pathva);
   return do_mkdir(pathpa);
 }
@@ -279,39 +282,23 @@ ssize_t sys_user_exec(char *path, char *para)
   // 将用户虚拟地址转换为物理地址
   char *ppath = (char *)user_va_to_pa((pagetable_t)(current->pagetable), (void *)path);
   char *ppara = (char *)user_va_to_pa((pagetable_t)(current->pagetable), (void *)para);
-  sprint("exec relative path:%s para:%s\n",ppath,ppara);
   char absolute_path[MAX_DEVICE_NAME_LEN*2];
   char absolute_para[MAX_DEVICE_NAME_LEN*2];
   transfer_2_absolute_path(ppath, absolute_path);
   transfer_2_absolute_path(ppara, absolute_para);
-  sprint("exec absolute path:%s absolute para:%s\n",absolute_path,absolute_para);
+  // sprint("exec absolute path:%s && absolute para:%s\n",absolute_path,absolute_para);
   // 处理程序参数
   char para_new[100];
   strcpy(para_new, absolute_para);
   
   // 执行程序
   // sprint("*** exec ***\n");
-  int ret = do_exec(absolute_path);
+  int ret = do_exec(absolute_path,absolute_para);
   if (ret < 0)
   {
     sprint("exec failed\n");
     return -1;
   }
-  // 分配用于参数数组的内存
-  char **argv_va = (char **)sys_user_allocate_page();
-  // 分配用于第一个参数字符串的内存
-  char *argv_0_va = (char *)sys_user_allocate_page();
-  // 将 argv_va 的虚拟地址转换为物理地址
-  char **argv_pa = user_va_to_pa(current->pagetable, (void *)argv_va);
-  // 将 argv_pa[0] 指向第一个参数
-  argv_pa[0] = argv_0_va;
-  // 将参数字符串复制到第一个参数内存中
-  char *argv_0_pa = (char *)user_va_to_pa(current->pagetable, (void *)argv_0_va);
-  strcpy(argv_0_pa, para_new);
-  // 设置寄存器
-  current->trapframe->regs.a0 = 1;               // 参数个数
-  current->trapframe->regs.a1 = (uint64)argv_va; // 参数数组地址
-
   return 0;
 }
 ssize_t sys_user_scan(const char *buf)
@@ -340,7 +327,7 @@ ssize_t sys_sem_v(int sem_id){
 //
 ssize_t sys_user_read_cwd(char *pathva){
     char * pathpa = (char*)user_va_to_pa((pagetable_t)(current->pagetable), pathva);//得到物理地址z
-    sprint("pathpa:%s\n",pathpa);
+    // sprint("pathpa:%s\n",pathpa);
     return do_read_cwd(pathpa);
 }
 
@@ -350,6 +337,36 @@ ssize_t sys_user_read_cwd(char *pathva){
 ssize_t sys_user_change_cwd(char *pathva){
     char * pathpa = (char*)user_va_to_pa((pagetable_t)(current->pagetable), pathva);
     return do_change_cwd(pathpa);
+}
+int print_func_name(uint64 ret_addr) {
+  // sprint("ret_addr:%lx\n",ret_addr);
+    for(int i=0;i<elf_sym_tab.sym_count;i++){
+        if (ret_addr >= elf_sym_tab.sym[i].st_value && ret_addr < elf_sym_tab.sym[i].st_value + elf_sym_tab.sym[i].st_size) {
+            sprint("%s\n", elf_sym_tab.sym_names[i]);
+            if (strcmp(elf_sym_tab.sym_names[i], "main") == 0)//到main函数就返回
+                return 0;
+            return 1;
+        }
+    }
+    return 1;
+}
+//added lab1_ch1
+ssize_t sys_user_print_backtrace(uint64 n) {
+//  sprint("sp:%lx,s0:%lx", current->trapframe->regs.sp, current->trapframe->regs.s0);
+  // sprint("print backtrace:user_s0=%lx,user_sp=%lx\n",current->trapframe->regs.s0,current->trapframe->regs.sp);
+   uint64 user_s0 = current->trapframe->regs.s0;//得到s0
+    uint64 user_sp = user_s0;//sp = s0，得到用户态的sp
+    uint64 user_ra = user_sp + 8; //ra = sp + 8，得到用户态的ra
+    for (int i=0;i<n;i++){
+    //  sprint("backtrace %d: ra:%p\n",i,*((uint64 *)user_ra));
+        void * addr = user_va_to_pa((pagetable_t)(current->pagetable), (void *)user_ra);//将用户态的地址转换为物理地址
+        // sprint("backtrace %d: ra:%lx\n",i,*(uint64 *)addr);
+        if(print_func_name(*(uint64 * )addr)==0)//将ra指向的地址转换为uint64，然后调用print_func_name
+        return i;
+
+      user_ra = user_ra + 16;//每次移动2个字长
+    }
+    return 0;
 }
 
 //
@@ -416,6 +433,8 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
       return sys_sem_p(a1);
     case SYS_user_sem_v:
       return sys_sem_v(a1);
+    case SYS_user_print_backtrace:
+      return sys_user_print_backtrace(a1);
 
     default:
       panic("Unknown syscall %ld \n", a0);

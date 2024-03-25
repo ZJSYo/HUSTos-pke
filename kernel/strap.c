@@ -62,7 +62,9 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval) {
         {
 //            sprint("g_upage_start: %lx\n", g_ufree_page);
             if(stval >= g_ufree_page && stval < USER_STACK_TOP - (n_stack_pages +1) * PGSIZE){
-                panic("this address is not available!");
+                // panic("this address is not available!");
+                sprint("this address is not available!\n");
+                sys_user_exit(-1);
                 break;
             }
             void *pa = alloc_page();//分配物理页面

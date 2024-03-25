@@ -12,38 +12,39 @@ int main(int argc, char *argv[]) {
   char command[128], para[128], cwd[128];
   char username[128] = "root";
   char password[128] = "123456";
-  char input_username[128], input_password[128];
-  int cnt = 0;
-  while(1){
-    printu("Please input username: ");
-    scanu("%s", input_username);
-    if(strcmp(input_username, username) != 0){
-      printu("Username not exist!\n");
-      if(++cnt >= 3){
-        printu("You have tried too many times!\n");
-        exit(0);
-      }
-    }
-    else{
-      break;
-    }
-  }
-  cnt = 0;
-  while(1){
-    printu("Please input password: ");
-    scanu("%s", input_password);
-    if(strcmp(input_password, password) != 0){
-      printu("Password not correct!\n");
-      if(++cnt >= 3){
-        printu("You have tried too many times!\n");
-        exit(0);
-      }
-    }
-    else{
-      break;
-    }
-  }
-  printu("\n======== Login Success:Last login: Wed Mar 13 08:43:43 2024 from 10.21.184.196========\n\n");
+  // char input_username[128], input_password[128];
+  // int cnt = 0;
+  // while(1){
+  //   printu("Please input username: ");
+  //   scanu("%s", input_username);
+  //   if(strcmp(input_username, username) != 0){
+  //     printu("Username not exist!\n");
+  //     if(++cnt >= 3){
+  //       printu("You have tried too many times!\n");
+  //       exit(0);
+  //     }
+  //   }
+  //   else{
+  //     break;
+  //   }
+  // }
+  // cnt = 0;
+  // while(1){
+  //   printu("Please input password: ");
+  //   scanu("%s", input_password);
+  //   if(strcmp(input_password, password) != 0){
+  //     printu("Password not correct!\n");
+  //     if(++cnt >= 3){
+  //       printu("You have tried too many times!\n");
+  //       exit(0);
+  //     }
+  //   }
+  //   else{
+  //     break;
+  //   }
+  // }
+  
+  // printu("\n======== Login Success:Last login: Wed Mar 13 08:43:43 2024 from 10.21.184.196========\n\n");
   while (1){
     pwd(cwd);
     printu("[%s@localhost %s]$ ", username,cwd);
@@ -62,8 +63,10 @@ int main(int argc, char *argv[]) {
         int ret = exec(command, para);
         if (ret == -1)
           printu("exec failed!\n");
-        else 
-          printu("======== Command executed successfully ========\n");
+        else {
+          // printu("======== Command executed successfully ========\n");
+          return 0;
+        }
       }
       else
       {

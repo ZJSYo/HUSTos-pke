@@ -28,7 +28,7 @@ static void transfer_2_absolute_path(char * relative_path,char * absolute_path){
   
     int type = 0;
     struct dentry * cwd = current->pfiles->cwd;
-    sprint("cwd:%s\n",cwd->name);
+    // sprint("cwd:%s\n",cwd->name);
     if(relative_path[0] == '.'){
         type = 1;
         if(relative_path[1] == '.'){//相对路径为'../*'，则需要返回上一级目录
@@ -279,14 +279,14 @@ int do_read_cwd(char *pathpa) {
     struct dentry *cwd = current->pfiles->cwd;
     if(cwd == NULL) panic("read cwd failed! cwd is NULL\n");
     else if(cwd->parent==NULL){
-        sprint("do_read_cwd: cwd is root\n");
+        // sprint("do_read_cwd: cwd is root\n");
         strcpy(pathpa,"/");
         return 0;
     }else {
         char absolute_path[MAX_DEVICE_NAME_LEN];
         memset(absolute_path, '\0', MAX_DEVICE_NAME_LEN);
         transfer_2_absolute_path(pathpa, absolute_path);
-        sprint("do_read_cwd: absolute_path:%s\n", absolute_path);
+        // sprint("do_read_cwd: absolute_path:%s\n", absolute_path);
         strcpy(pathpa, absolute_path);
         pathpa[strlen(pathpa) - 1] = '\0';//TODO
     }

@@ -12,7 +12,7 @@ process* blocked_queue_head = NULL;
 // insert a process, proc, into the END of ready queue.
 //
 void insert_to_ready_queue( process* proc ) {
-  // sprint( "going to insert process %d to ready queue.\n", proc->pid );
+  sprint( "going to insert process %d to ready queue.\n", proc->pid );
   // if the queue is empty in the beginning
   if( ready_queue_head == NULL ){
     proc->status = READY;
@@ -37,7 +37,7 @@ void insert_to_ready_queue( process* proc ) {
 }
 
 void insert_to_blocked_queue( process* proc ){
-  //  sprint( "going to insert process %d to blocked queue.\n", proc->pid );
+   sprint( "going to insert process %d to blocked queue.\n", proc->pid );
   if( blocked_queue_head == NULL ){
     proc->status = BLOCKED;
     proc->queue_next = NULL;
@@ -90,7 +90,7 @@ void schedule() {
   ready_queue_head = ready_queue_head->queue_next;
 
   current->status = RUNNING;
-  // sprint( "going to schedule process %d to run.\n", current->pid );
+  sprint( "going to schedule process %d to run.\n", current->pid );
   // sprint("info of current process: pid=%d, status=%d\n kstack=%lx,tick_count=%d\n",current->pid,current->status,current->kstack,current->tick_count);
   // for(int i=0;i<current->total_mapped_region;i++){
   //   // sprint("mapped_info[%d]:va:%ld,npages:%d,seg_type:%d ",i,current->mapped_info[i].va,current->mapped_info[i].npages,current->mapped_info[i].seg_type);

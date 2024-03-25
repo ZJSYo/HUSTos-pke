@@ -4,6 +4,7 @@
 #include "util/types.h"
 #include "process.h"
 
+
 #define MAX_CMDLINE_ARGS 64
 
 // elf header structure
@@ -89,9 +90,27 @@ typedef struct elf_ctx_t {
   elf_header ehdr;
 } elf_ctx;
 
+//added lab1_ch1
+
+// elf_symbol --符号表项结构
+typedef struct elf_symbol_t {
+  uint32 st_name; /* Symbol name (string tbl index) */
+  uint8 st_info;  /* Symbol type and binding */
+  uint8 st_other; /* Symbol visibility */
+  uint16 st_shndx; /* Section index,节的索引 */
+  uint64 st_value; /* Symbol value ,地址*/
+  uint64 st_size; /* Symbol size ，符号大小*/
+} elf_sym;
+
+// symbol table -- 符号表
+struct elf_sym_table{
+    elf_sym sym[64];
+    char sym_names[64][32];
+    int sym_count;
+};
+
 elf_status elf_init(elf_ctx *ctx, void *info);
 elf_status elf_load(elf_ctx *ctx);
 elf_status elf_change(process *p, elf_ctx *ctx, struct file *file);
-void vfs_load_bincode_from_elf(process *p,char * filename);
-
+void load_bincode_from_host_elf(process *p,char* filename);
 #endif
