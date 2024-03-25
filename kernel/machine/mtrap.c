@@ -9,7 +9,9 @@ static void handle_load_access_fault() { panic("Load access fault!"); }
 
 static void handle_store_access_fault() { panic("Store/AMO access fault!"); }
 
-static void handle_illegal_instruction() { panic("Illegal instruction!"); }
+static void handle_illegal_instruction() { 
+  panic("Illegal instruction!"); 
+}
 
 static void handle_misaligned_load() { panic("Misaligned Load!"); }
 
@@ -27,29 +29,40 @@ static void handle_timer() {
 
 void print_errorline(){
     // output sample:Runtime error at user/app_errorline.c:13 + code_line
-    sprint("print_errorline\n");
     char file_name[100];
     char code_line[1000];
     memset(file_name, 0, 100);
     memset(code_line, 0, 1000);
+    
     uint64 epc = read_csr(mepc);//读取导致异常的指令地址
-    sprint("line_ind:%d\n",current->line_ind);
+    sprint("epc:%p\n",epc);
+    // sprint("line_ind:%d\n",current->line_ind);
     for(int i = 0; i < current->line_ind; i++){
+        // sprint("i:%d , addr:%p , epc:%p\n",i,current->line[i].addr,epc);
         if(current->line[i].addr > epc){//找到导致异常的指令地址所在的行i-1
+          sprint("i:%d\n",i);
           // 根据出错的行数，找到对应的文件具体名称
           // 完整文件名 = 目录名(在dir中) + 文件名(在file中)
           addr_line *line = &current->line[i-1];
+          
+          
+          uint64 dir_idx = current->file[line->file].dir;
+          sprint("dir_idx:%d\n",dir_idx);
           // panic("Runtime error at unknown location1\n");
+          // panic("print_errorline\n");
           strcpy(file_name, current->dir[current->file[line->file].dir]);
+          // panic("print_errorline\n");
           // panic("Runtime error at unknown location2\n");
           sprint("file_name:%s\n",file_name);
-          panic("Runtime error at unknown location2\n");
+          // panic("Runtime error at unknown location2\n");
           // 将文件名拼接到file_name后面，/分割
+          // panic("Runtime error at unknown location3\n");
           file_name[strlen(file_name)] = '/';
+          
           strcpy(file_name + strlen(file_name), current->file[line->file].file);
-          panic("Runtime error at unknown location3\n");
+          
           sprint("file_name:%s\n",file_name);
-          panic("Runtime error at unknown location4\n");
+          // panic("Runtime error at unknown location4\n");
           // 根据出错的行数，找到对应的代码行
           spike_file_t *f = spike_file_open(file_name, O_RDONLY,0);//打开文件
           struct stat st;
@@ -72,6 +85,8 @@ void print_errorline(){
               }
           }
               break;
+        }else{
+          // sprint("line:%d continue\n",current->line[i].line);
         }
     }
 }
@@ -94,6 +109,7 @@ void handle_mtrap() {
       break;
     case CAUSE_LOAD_ACCESS:
       sprint("handle_mtrap: CAUSE_LOAD_ACCESS\n");
+      // panic("Load access fault!");
       print_errorline();
       handle_load_access_fault();
     case CAUSE_STORE_ACCESS:
@@ -106,6 +122,7 @@ void handle_mtrap() {
       // interception, and finish lab1_2.
 //      panic( "call handle_illegal_instruction to accomplish illegal instruction interception for lab1_2.\n" );
       sprint("handle_mtrap: CAUSE_ILLEGAL_INSTRUCTION\n");
+      // panic("Illegal instruction!");
       print_errorline();
       handle_illegal_instruction();
       break;

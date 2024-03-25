@@ -3,6 +3,7 @@
 #include "util/types.h"
 
 int main(int argc, char *argv[]) {
+  // asm volatile("csrw sscratch, 0");
   int fd;
   char str[] = "hello world";
   char *filename = argv[0];

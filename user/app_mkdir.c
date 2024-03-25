@@ -4,6 +4,7 @@
 
 
 int main(int argc, char *argv[]) {
+  // asm volatile("csrw sscratch, 0");
   char *new_dir = argv[0];
   printu("\n======== mkdir command ========\n");
 
