@@ -111,6 +111,11 @@ typedef struct process_t {
   uint64 heap_size;
   uint64 mcb_head; // 内存控制块链表头指针的地址pa
   uint64 mcb_tail; // 内存控制块链表尾指针的地址pa
+
+  //added lab2_ch1
+  uint64 n_stack_pages;
+
+  int init_flag;//mem_control_block链表是否初始化的标志
 }process;
 
 /* -- 信号量的定义 -- */

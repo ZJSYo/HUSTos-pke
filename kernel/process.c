@@ -214,6 +214,7 @@ int do_fork(process *parent) {
                 break;
             }
             case STACK_SEGMENT:
+                sprint("p-%d:stack copy\n",current->pid);
                 memcpy((void *) lookup_pa(child->pagetable, child->mapped_info[STACK_SEGMENT].va),
                        (void *) lookup_pa(parent->pagetable, parent->mapped_info[i].va), PGSIZE);
                 break;
@@ -223,7 +224,7 @@ int do_fork(process *parent) {
                 // convert free_pages_address into a filter to skip reclaimed blocks in the heap
                 // when mapping the heap blocks
             {
-                // sprint("heap copy\n");
+                sprint("p-%d:heap copy,heap_bottom=%lx,heap_top=%lx,heap_size=%lx\n",current->pid,parent->user_heap.heap_bottom,parent->user_heap.heap_top,parent->user_heap.heap_top-parent->user_heap.heap_bottom);
                 int free_block_filter[MAX_HEAP_PAGES];
                 memset(free_block_filter, 0, MAX_HEAP_PAGES);
                 uint64 heap_bottom = parent->user_heap.heap_bottom;
@@ -245,7 +246,7 @@ int do_fork(process *parent) {
                     //lab3_ch3 cow 只映射不拷贝
                     uint64 pa = lookup_pa(parent->pagetable, heap_block);
                     user_vm_map((pagetable_t) child->pagetable, heap_block, PGSIZE, pa,prot_to_type(PROT_READ, 1));
-                    sprint("do_dork:1\n");
+                    sprint("do_fork:heap map\n");
                     pte_t * pte = page_walk((pagetable_t) child->pagetable, heap_block, 0);
                     if( pte == NULL){
                         panic("segment mapping fault\n");
@@ -267,6 +268,7 @@ int do_fork(process *parent) {
             }
             case CODE_SEGMENT:
             {
+                sprint("dofork:code copy\n");
                 uint64 child_va = parent->mapped_info[i].va;
                 uint64 child_pa = lookup_pa(parent->pagetable, child_va);
                 user_vm_map((pagetable_t) child->pagetable, child_va, PGSIZE, child_pa,
@@ -281,6 +283,7 @@ int do_fork(process *parent) {
             }
             // copy the data segment from parent to child
             case DATA_SEGMENT:{
+                sprint("dofork:data copy\n");
                 for (int j = 0; j < parent->mapped_info[i].npages; j++)
                 {
                     uint64 addr = lookup_pa(parent->pagetable, parent->mapped_info[i].va + j * PGSIZE);
@@ -305,6 +308,7 @@ int do_fork(process *parent) {
     child->parent = parent;
     //将父进程的pfiles复制给子进程
     child->pfiles = parent->pfiles;
+    child->n_stack_pages = 1;
 
     //将父进程的char debugline[32768]; char **dir; code_file *file; addr_line *line; int line_ind;复制给子进程
     // child->debugline = parent->debugline;

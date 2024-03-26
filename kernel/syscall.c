@@ -373,8 +373,7 @@ ssize_t sys_user_print_backtrace(uint64 n) {
 ssize_t sys_user_printpa(uint64 va)
 {
   uint64 pa = (uint64)user_va_to_pa((pagetable_t)(current->pagetable), (void*)va);
-  // sprint("%lx\n", pa);
-  sprint("pa:%lx\n",va,pa);
+  sprint("pa:%lx\n",pa);
   return 0;
 }
 

@@ -10,6 +10,7 @@
 
 int main(void) {
   int *heap_data = malloc(4096);
+  printu("cow test\n");
   int pid = fork();
   if (pid == 0) {
     printu("the physical address of child process heap before copy on write is: ");

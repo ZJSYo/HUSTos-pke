@@ -14,7 +14,7 @@
 #include "util/functions.h"
 
 
-int init_flag = 0;//mem_control_block链表是否初始化的标志
+
 
 /* --- utility functions for virtual address mapping --- */
 //
@@ -136,7 +136,7 @@ void kern_vm_init(void) {
   kern_vm_map(t_page_dir, KERN_BASE, DRAM_BASE, (uint64)_etext - KERN_BASE,
          prot_to_type(PROT_READ | PROT_EXEC, 0));
 
-  sprint("KERN_BASE 0x%lx\n", lookup_pa(t_page_dir, KERN_BASE));
+  // sprint("KERN_BASE 0x%lx\n", lookup_pa(t_page_dir, KERN_BASE));
 
   // also (direct) map remaining address space, to make them accessable from kernel.
   // this is important when kernel needs to access the memory content of user's app
@@ -144,7 +144,7 @@ void kern_vm_init(void) {
   kern_vm_map(t_page_dir, (uint64)_etext, (uint64)_etext, PHYS_TOP - (uint64)_etext,
          prot_to_type(PROT_READ | PROT_WRITE, 0));
 
-  sprint("physical address of _etext is: 0x%lx\n", lookup_pa(t_page_dir, (uint64)_etext));
+  // sprint("physical address of _etext is: 0x%lx\n", lookup_pa(t_page_dir, (uint64)_etext));
 
   g_kernel_pagetable = t_page_dir;
 }
@@ -238,6 +238,7 @@ void print_proc_vmspace(process* proc) {
 /* --- 堆增长 --- */
 uint64 user_heap_grow(pagetable_t pagetable,uint64 old_size,uint64 new_size){
     // 为虚拟地址[old_size, new_size]分配页面并进行映射
+    sprint("pid: %d, old_size: %d, new_size: %d\n", current->pid, old_size, new_size);
     if(old_size >= new_size) return old_size; //非法，新的size应该大于旧的size
     old_size = ROUNDUP(old_size,PGSIZE); //向上对齐
     for(uint64 i = old_size; i < new_size; i += PGSIZE){ // 为[old_size, new_size]分配页面并进行映射
@@ -245,6 +246,8 @@ uint64 user_heap_grow(pagetable_t pagetable,uint64 old_size,uint64 new_size){
         if(mem_new == NULL) panic("user_heap_malloc: out of memory");
         memset(mem_new, 0, PGSIZE);
         user_vm_map(pagetable, i, PGSIZE, (uint64)mem_new, prot_to_type(PROT_READ | PROT_WRITE,1));
+        current->heap_size += PGSIZE;
+        current->user_heap.heap_top = new_size;
     }
     return new_size;
 }
@@ -260,7 +263,7 @@ void user_better_malloc(uint64 n){
 
 /* -- 内存池的初始化 -- */
 void mcb_init(){
-    if(init_flag==0){ //未被初始化
+    if(current->init_flag==0){ //未被初始化
         current->heap_size = USER_FREE_ADDRESS_START;
         uint64 start = current->heap_size;
         user_better_malloc(sizeof(mem_control_block)); //分配第一个内存控制块
@@ -270,7 +273,7 @@ void mcb_init(){
         first_control_block->next = first_control_block; //初始化链表
         first_control_block->size = 0; //size初始为0
         current->mcb_tail = (uint64)first_control_block; //记录最后一个内存控制块的地址
-        init_flag = 1;
+        current->init_flag = 1;
     }
 }
 
