@@ -316,6 +316,7 @@ uint64 malloc(int n){
     head = (mem_control_block *)current->mcb_head;
 //    current->mcb_tail = (uint64)new_control_block;
 //    sprint("malloc: allocate a new memory block, offset: %d, size: %d\n", new_control_block->offset, new_control_block->size);
+    sprint("malloc: allocate a new memory block, offset: %lx, size: %d\n", new_control_block->offset, new_control_block->size);
     return allocate_addr + sizeof(mem_control_block);//返回新分配的空间首地址
 }
 void free(void* va){

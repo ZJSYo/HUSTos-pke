@@ -51,6 +51,9 @@
 //added lab1_ch1
 #define SYS_user_print_backtrace (SYS_user_base + 38)
 
+//added lab3_ch3
+#define SYS_user_printpa (SYS_user_base + 39)
+
 ssize_t sys_user_exit(uint64 code);
 long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, long a7);
 

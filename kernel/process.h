@@ -153,3 +153,4 @@ extern semaphore sem_pool[NPROC];
 extern uint64 g_ufree_page;
 #endif
 void init_process(process *p);
+void copy_on_write_on_heap(process * child,process * parent,uint64 pa);

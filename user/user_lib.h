@@ -52,4 +52,7 @@ int print_backtrace(int n);
 //added lab2_ch2
 void * malloc(uint64 size);
 void free(void * ptr);
+
+//added lab3_ch3
+void printpa(int* va);
 #endif

@@ -203,10 +203,11 @@ int free_process(process *proc) {
 int do_fork(process *parent) {
     // sprint("will fork a child from parent %d.\n", parent->pid);
     process *child = alloc_process();
-
+    // sprint("do_fork\n");
     for (int i = 0; i < parent->total_mapped_region; i++) {
         // browse parent's vm space, and copy its trapframe and data segments,
         // map its code segment.
+        
         switch (parent->mapped_info[i].seg_type) {
             case CONTEXT_SEGMENT:{
                 *child->trapframe = *parent->trapframe;
@@ -222,6 +223,7 @@ int do_fork(process *parent) {
                 // convert free_pages_address into a filter to skip reclaimed blocks in the heap
                 // when mapping the heap blocks
             {
+                // sprint("heap copy\n");
                 int free_block_filter[MAX_HEAP_PAGES];
                 memset(free_block_filter, 0, MAX_HEAP_PAGES);
                 uint64 heap_bottom = parent->user_heap.heap_bottom;
@@ -236,9 +238,25 @@ int do_fork(process *parent) {
                     if (free_block_filter[(heap_block - heap_bottom) / PGSIZE])  // skip free blocks
                         continue;
 
-                    void *child_pa = alloc_page();
-                    memcpy(child_pa, (void *) lookup_pa(parent->pagetable, heap_block), PGSIZE);
-                    user_vm_map((pagetable_t) child->pagetable, heap_block, PGSIZE, (uint64) child_pa,prot_to_type(PROT_WRITE | PROT_READ, 1));
+                    // void *child_pa = alloc_page();
+                    // memcpy(child_pa, (void *) lookup_pa(parent->pagetable, heap_block), PGSIZE);
+                    // user_vm_map((pagetable_t) child->pagetable, heap_block, PGSIZE, (uint64) child_pa,prot_to_type(PROT_WRITE | PROT_READ, 1));
+
+                    //lab3_ch3 cow 只映射不拷贝
+                    uint64 pa = lookup_pa(parent->pagetable, heap_block);
+                    user_vm_map((pagetable_t) child->pagetable, heap_block, PGSIZE, pa,prot_to_type(PROT_READ, 1));
+                    sprint("do_dork:1\n");
+                    pte_t * pte = page_walk((pagetable_t) child->pagetable, heap_block, 0);
+                    if( pte == NULL){
+                        panic("segment mapping fault\n");
+                    }
+                    *pte |= PTE_C;
+                    pte = page_walk((pagetable_t) parent->pagetable, heap_block, 0);
+                    if( pte == NULL){
+                        panic("parent page faults\n");
+                    }
+                    //父进程的堆设置为只读
+                    *pte &= ~PTE_W;
                 }
 
                 child->mapped_info[HEAP_SEGMENT].npages = parent->mapped_info[HEAP_SEGMENT].npages;
@@ -497,4 +515,28 @@ int do_exec(char *path,char * para)
   current->trapframe->regs.a1 = (uint64)vsp;
 //   sprint("user_s0_3 = %lx user_sp = %lx\n", current->trapframe->regs.s0, current->trapframe->regs.sp);
   return 0;
+}
+void copy_on_write_on_heap(process * child,process * parent,uint64 pa){
+    // sprint("copy on write\n");
+    for (uint64 heap_block = parent->user_heap.heap_bottom;
+      heap_block < parent->user_heap.heap_top; heap_block += PGSIZE){
+        uint64 heap_block_pa = lookup_pa(parent->pagetable, heap_block);
+        if(heap_block_pa == 0) 
+        panic("error on looking up heap_block pa!");
+        if(heap_block_pa >= pa && heap_block_pa < pa + PGSIZE) {
+            user_vm_unmap(child->pagetable, heap_block, PGSIZE, 0); // 取消映射
+            void *pa = alloc_page();
+            if ((void *)pa == NULL)
+                panic("Can not allocate a new physical page.\n");
+            pte_t *child_pte = page_walk(child->pagetable, heap_block, 0);
+            if(child_pte == NULL) {
+                panic("error when mapping heap segment!");
+            }
+            *child_pte |= (~PTE_C); // 设置写时复制标志，为已复制
+            *child_pte &= PTE_W | PTE_R;    // 设置读写权限
+            user_vm_map(child->pagetable, heap_block, PGSIZE, (uint64)pa, prot_to_type(PROT_WRITE | PROT_READ, 1));
+            memcpy(pa, (void *)lookup_pa(parent->pagetable, heap_block), PGSIZE);      
+            break;
+        }
+      }
 }
