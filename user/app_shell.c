@@ -61,12 +61,7 @@ int main(int argc, char *argv[]) {
       int pid = fork();
       if(pid == 0) {
         int ret = exec(command, para);
-        if (ret == -1)
-          printu("exec failed!\n");
-        else {
-          // printu("======== Command executed successfully ========\n");
-          return 0;
-        }
+        return ret;
       }
       else
       {

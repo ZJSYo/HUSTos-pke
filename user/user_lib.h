@@ -9,8 +9,7 @@
 
 int printu(const char *s, ...);
 int exit(int code);
-void* naive_malloc();
-void naive_free(void* va);
+
 int fork();
 void yield();
 
@@ -50,5 +49,7 @@ int sem_V(int sem_id);
 //added lab1_ch1
 int print_backtrace(int n);
 
-
+//added lab2_ch2
+void * malloc(uint64 size);
+void free(void * ptr);
 #endif

@@ -51,19 +51,19 @@ int exit(int code) {
   return do_user_call(SYS_user_exit, code, 0, 0, 0, 0, 0, 0); 
 }
 
-//
-// lib call to naive_malloc
-//
-void* naive_malloc() {
-  return (void*)do_user_call(SYS_user_allocate_page, 0, 0, 0, 0, 0, 0, 0);
-}
+// //
+// // lib call to naive_malloc
+// //
+// void* naive_malloc() {
+//   return (void*)do_user_call(SYS_user_allocate_page, 0, 0, 0, 0, 0, 0, 0);
+// }
 
-//
-// lib call to naive_free
-//
-void naive_free(void* va) {
-  do_user_call(SYS_user_free_page, (uint64)va, 0, 0, 0, 0, 0, 0);
-}
+// //
+// // lib call to naive_free
+// //
+// void naive_free(void* va) {
+//   do_user_call(SYS_user_free_page, (uint64)va, 0, 0, 0, 0, 0, 0);
+// }
 
 //
 // lib call to naive_fork
@@ -230,4 +230,17 @@ int sem_V(int sem_id){
 }
 int print_backtrace(int n) {
   return do_user_call(SYS_user_print_backtrace, n, 0, 0, 0, 0, 0, 0);
+}
+//
+// lib call to better_malloc
+//
+void* malloc(uint64 n) {
+  return (void*)do_user_call(SYS_user_allocate_page, n, 0, 0, 0, 0, 0, 0);
+}
+
+//
+// lib call to better_free
+//
+void free(void* va) {
+  do_user_call(SYS_user_free_page, (uint64)va, 0, 0, 0, 0, 0, 0);
 }
