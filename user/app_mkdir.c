@@ -4,9 +4,10 @@
 
 
 int main(int argc, char *argv[]) {
-  // asm volatile("csrw sscratch, 0");
-  char *new_dir = argv[0];
+  // asm volatile("csrw sscratch, 0");)
   printu("\n======== mkdir command ========\n");
+  char *new_dir = argv[0];
+  
 
   mkdir_u(new_dir);
   printu("mkdir: %s\n", new_dir);

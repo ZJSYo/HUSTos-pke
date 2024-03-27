@@ -2,7 +2,7 @@
 #define _CONFIG_H_
 
 // we use only one HART (cpu) in fundamental experiments
-#define NCPU 2
+#define NCPU 1
 
 //interval of timer interrupt. added @lab1_3
 #define TIMER_INTERVAL 1000000

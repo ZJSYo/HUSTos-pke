@@ -93,7 +93,7 @@ ssize_t sys_user_print(const char* buf, size_t n) {
 //
 ssize_t sys_user_exit(uint64 code) {
   int hartid = read_tp();
-  sprint("User exit with code:%d.\n", code);
+  sprint("hartid = %d, User exit with code:%d.\n",hartid,code);
   // sprint("process %d exit.\n", current[hartid]->pid);
   // reclaim the current[hartid] process, and reschedule. added @lab3_1
   free_process( current[hartid] );
@@ -258,7 +258,7 @@ ssize_t sys_user_readdir(int fd, struct dir *vdir){
 //
 ssize_t sys_user_mkdir(char * pathva){
   int hartid = read_tp();
-  sprint("user_s0:%lx\n",current[hartid]->trapframe->regs.s0);
+  // sprint("user_s0:%lx\n",current[hartid]->trapframe->regs.s0);
   char * pathpa = (char*)user_va_to_pa((pagetable_t)(current[hartid]->pagetable), pathva);
   return do_mkdir(pathpa);
 }

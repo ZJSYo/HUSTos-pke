@@ -129,7 +129,7 @@ int s_start(void) {
   lock(&mutex);
   insert_to_ready_queue( load_user_program() );
   unlock(&mutex);
-  // sync_barrier(&cnt2, NCPU);
+  sync_barrier(&cnt2, NCPU);
   schedule();
 
   // we should never reach here.

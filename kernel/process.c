@@ -46,6 +46,7 @@ void switch_to(process *proc) {
     int hartid = read_tp();
     assert(proc);
     current[hartid] = proc;
+    proc->hartid = hartid;
     // current[proc->hartid] = proc;
     // sprint("hartid = %d,proc->hartid = %d\n",hartid,proc->hartid);
     
@@ -174,12 +175,13 @@ process *alloc_process() {
     procs[i].mapped_info[HEAP_SEGMENT].seg_type = HEAP_SEGMENT;
 
     procs[i].total_mapped_region = 4;
-
+    procs[i].hartid = read_tp();
   // initialize files_struct
   procs[i].pfiles = init_proc_file_management();
 //   sprint("in alloc_proc. build proc_file_management successfully.\n");
   // return after initialization.
 //   unlock(&process_mutex);
+
   return &procs[i];
 }
 
@@ -325,8 +327,15 @@ int do_fork(process *parent) {
 
 
 int do_wait(int pid){
+    sprint("pid = %d : do_wait\n",current[read_tp()]->pid);
     int flag = 0;//标志是否找到子进程
     int hartid = read_tp();
+    for(int i=0;i < NPROC;i++){
+        if(procs[i].parent == current[hartid] && procs[i].status == ZOMBIE){//找到了一个僵尸进程
+                // sprint("find a zombie process %d\n",procs[i].pid);
+                procs[i].status = FREE;
+        }
+    }
     if(pid==-1){//父进程任意等待一个子进程
         for(int i=0;i < NPROC;i++){
             if(procs[i].parent == current[hartid] ){
