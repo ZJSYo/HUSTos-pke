@@ -15,7 +15,7 @@ process* blocked_queue_head[NCPU] = {NULL};
 void insert_to_ready_queue( process* proc ) {
   
   int hartid = read_tp();
-  sprint( "hartid = %d : going to insert process %d to ready queue.\n",hartid,proc->pid );
+  // sprint( "hartid = %d : going to insert process %d to ready queue.\n",hartid,proc->pid );
   // if the queue is empty in the beginning
   if( ready_queue_head[hartid] == NULL ){
     proc->status = READY;
@@ -41,7 +41,7 @@ void insert_to_ready_queue( process* proc ) {
 
 void insert_to_blocked_queue( process* proc ){
   int hartid = read_tp();
-  sprint( "hartid %d : going to insert process %d to blocked queue.\n", hartid,proc->pid );
+  // sprint( "hartid %d : going to insert process %d to blocked queue.\n", hartid,proc->pid );
   if( blocked_queue_head[read_tp()] == NULL ){
     proc->status = BLOCKED;
     proc->queue_next = NULL;
@@ -97,7 +97,7 @@ void schedule() {
   ready_queue_head[hartid] = ready_queue_head[hartid]->queue_next;
 
   current[hartid]->status = RUNNING;
-  sprint( "hartid = %d : going to schedule process %d to run.\n",hartid,current[hartid]->pid );
+  // sprint( "hartid = %d : going to schedule process %d to run.\n",hartid,current[hartid]->pid );
   switch_to( current[hartid] );
 }
 

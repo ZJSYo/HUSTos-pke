@@ -16,6 +16,7 @@
 #include "proc_file.h"
 #include "elf.h"
 #include "spike_interface/spike_file.h"
+#include "process.h"
 
 #include "spike_interface/spike_utils.h"
 
@@ -91,14 +92,24 @@ ssize_t sys_user_print(const char* buf, size_t n) {
 //
 // implement the SYS_user_exit syscall
 //
-ssize_t sys_user_exit(uint64 code) {
-  int hartid = read_tp();
-  sprint("hartid = %d, User exit with code:%d.\n",hartid,code);
-  // sprint("process %d exit.\n", current[hartid]->pid);
-  // reclaim the current[hartid] process, and reschedule. added @lab3_1
-  free_process( current[hartid] );
-  schedule();
-  return 0;
+ssize_t sys_user_exit(uint64 code)
+{
+	uint64 hartid = read_tp();
+
+	sprint("User exit with code:%d.\n",code);
+	
+	if (current[hartid]->parent != NULL && current[hartid]->parent->status == BLOCKED) {
+		if (current[hartid]->parent->waitpid == -1) {
+			insert_to_ready_queue(current[hartid]->parent);
+		}
+		else if (current[hartid]->parent->waitpid == current[hartid]->pid) {
+			insert_to_ready_queue(current[hartid]->parent);
+		}
+	}
+
+	free_process(current[hartid]);
+	schedule();
+	return 0;
 }
 
 //
@@ -289,8 +300,19 @@ ssize_t sys_user_unlink(char * vfn){
   return do_unlink(pfn);
 }
 
-ssize_t sys_user_wait(int pid) {
-  return do_wait(pid);
+//
+// lib call to wait
+//
+ssize_t sys_user_wait(int pid)
+{
+	if (pid == 0 || procs[pid].parent != current[read_tp()])
+	{
+		return -1;
+	}
+	current[read_tp()]->status = BLOCKED;
+	current[read_tp()]->waitpid = pid;
+	schedule();
+	return pid;
 }
 ssize_t sys_user_exec(char *path, char *para)
 {

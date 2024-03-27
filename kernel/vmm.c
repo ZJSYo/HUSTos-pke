@@ -241,7 +241,7 @@ void print_proc_vmspace(process* proc) {
 /* --- 堆增长 --- */
 uint64 user_heap_grow(pagetable_t pagetable,uint64 old_size,uint64 new_size){
     // 为虚拟地址[old_size, new_size]分配页面并进行映射
-    sprint("pid: %d, old_size: %d, new_size: %d\n", current[read_tp()]->pid, old_size, new_size);
+    // sprint("pid: %d, old_size: %d, new_size: %d\n", current[read_tp()]->pid, old_size, new_size);
     if(old_size >= new_size) return old_size; //非法，新的size应该大于旧的size
     old_size = ROUNDUP(old_size,PGSIZE); //向上对齐
     for(uint64 i = old_size; i < new_size; i += PGSIZE){ // 为[old_size, new_size]分配页面并进行映射
@@ -322,7 +322,7 @@ uint64 malloc(int n){
     head = (mem_control_block *)current[read_tp()]->mcb_head;
 //    current[read_tp()]->mcb_tail = (uint64)new_control_block;
 //    sprint("malloc: allocate a new memory block, offset: %d, size: %d\n", new_control_block->offset, new_control_block->size);
-    sprint("malloc: allocate a new memory block, offset: %lx, size: %d\n", new_control_block->offset, new_control_block->size);
+    // sprint("malloc: allocate a new memory block, offset: %lx, size: %d\n", new_control_block->offset, new_control_block->size);
     return allocate_addr + sizeof(mem_control_block);//返回新分配的空间首地址
 }
 void free(void* va){

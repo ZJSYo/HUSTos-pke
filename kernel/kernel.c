@@ -74,7 +74,7 @@ process* load_user_program() {
   process* proc = alloc_process();//分配一个进程
   
   int hartid = read_tp();
-  sprint("hartid = %d proc.pid = %d: User application is loading.\n",hartid,proc->pid);
+  sprint("hartid = %d : User application is loading.\n",hartid);
   // retrieve command line arguements
   if(parse_cnt ==0){
     parse_cnt = 1;

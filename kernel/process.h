@@ -91,6 +91,7 @@ typedef struct process_t {
   // process id
   uint64 pid;
   uint64 hartid;
+  uint64 waitpid;
   // process status
   int status;
   // parent process
@@ -153,6 +154,7 @@ int do_sem_free(int sem_id);
 
 // current running process
 extern process* current[NCPU];
+extern process procs[NPROC];
 extern semaphore sem_pool[NPROC];
 // address of the first free page in our simple heap. added @lab2_2
 extern uint64 g_ufree_page[NCPU];

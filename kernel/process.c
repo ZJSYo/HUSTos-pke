@@ -199,7 +199,7 @@ int free_process(process *proc) {
         return 0;
     }
     awake_father_process(proc);
-    sprint("process %d is going to be freed\n",proc->pid);
+    // sprint("process %d is going to be freed\n",proc->pid);
     return 0;
 }
 

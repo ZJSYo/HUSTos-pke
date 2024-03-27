@@ -8,6 +8,7 @@
 #include "util/types.h"
 
 int main(int argc, char *argv[]) {
+  wait(1);
   printu("\n======== HUST-PKE Shell Start ========\n\n");
   char command[128], para[128], cwd[128];
   char username[128] = "root";

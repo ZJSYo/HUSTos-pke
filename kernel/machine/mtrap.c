@@ -35,7 +35,7 @@ void print_errorline(){
     memset(code_line, 0, 1000);
     
     uint64 epc = read_csr(mepc);//读取导致异常的指令地址
-    sprint("epc:%p\n",epc);
+    // sprint("epc:%p\n",epc);
     // sprint("line_ind:%d\n",current[read_tp()]->line_ind);
     for(int i = 0; i < current[read_tp()]->line_ind; i++){
         // sprint("i:%d , addr:%p , epc:%p\n",i,current[read_tp()]->line[i].addr,epc);
@@ -108,7 +108,7 @@ void handle_mtrap() {
       handle_instruction_access_fault();
       break;
     case CAUSE_LOAD_ACCESS:
-      sprint("handle_mtrap: CAUSE_LOAD_ACCESS\n");
+      // sprint("handle_mtrap: CAUSE_LOAD_ACCESS\n");
       // panic("Load access fault!");
       print_errorline();
       handle_load_access_fault();
