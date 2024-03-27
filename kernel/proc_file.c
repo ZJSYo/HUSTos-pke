@@ -21,13 +21,14 @@ static void transfer_2_absolute_path(char * relative_path,char * absolute_path){
      * 在和相对路径拼接，得到绝对路径
      */
 //     sprint("relative_path:%s\n",relative_path);
+    int hartid = read_tp();
     if(relative_path[0] == '/'){
         memcpy(absolute_path,relative_path,strlen(relative_path));
         return;
     }
   
     int type = 0;
-    struct dentry * cwd = current->pfiles->cwd;
+    struct dentry * cwd = current[hartid]->pfiles->cwd;
     // sprint("cwd:%s\n",cwd->name);
     if(relative_path[0] == '.'){
         type = 1;
@@ -110,11 +111,12 @@ void reclaim_proc_file_management(proc_file_management *pfiles) {
 // return: the pointer to the opened file structure.
 //
 struct file *get_opened_file(int fd) {
+  int hartid = read_tp();
   struct file *pfile = NULL;
 
   // browse opened file list to locate the fd
   for (int i = 0; i < MAX_FILES; ++i) {
-    pfile = &(current->pfiles->opened_files[i]);  // file entry
+    pfile = &(current[hartid]->pfiles->opened_files[i]);  // file entry
     if (i == fd) break;
   }
   if (pfile == NULL) panic("do_read: invalid fd!\n");
@@ -126,23 +128,24 @@ struct file *get_opened_file(int fd) {
 // return: -1 on failure; non-zero file-descriptor on success.
 //
 int do_open(char *pathname, int flags) {
+  int hartid = read_tp();
   struct file *opened_file = NULL;
   if ((opened_file = vfs_open(pathname, flags)) == NULL) return -1;
 
   int fd = 0;
-  if (current->pfiles->nfiles >= MAX_FILES) {
-    panic("do_open: no file entry for current process!\n");
+  if (current[hartid]->pfiles->nfiles >= MAX_FILES) {
+    panic("do_open: no file entry for current[hartid] process!\n");
   }
   struct file *pfile;
   for (fd = 0; fd < MAX_FILES; ++fd) {
-    pfile = &(current->pfiles->opened_files[fd]);
+    pfile = &(current[hartid]->pfiles->opened_files[fd]);
     if (pfile->status == FD_NONE) break;
   }
 
   // initialize this file structure
   memcpy(pfile, opened_file, sizeof(struct file));
 
-  ++current->pfiles->nfiles;
+  ++current[hartid]->pfiles->nfiles;
   return fd;
 }
 
@@ -212,6 +215,7 @@ int do_close(int fd) {
 // return: the fd of the directory file
 //
 int do_opendir(char *pathname) {
+  int hartid = read_tp();
   sprint("do_opendir: %s\n", pathname);
   struct file *opened_file = NULL;
   if ((opened_file = vfs_opendir(pathname)) == NULL){
@@ -224,16 +228,16 @@ int do_opendir(char *pathname) {
   int fd = 0;
   struct file *pfile;
   for (fd = 0; fd < MAX_FILES; ++fd) {
-    pfile = &(current->pfiles->opened_files[fd]);
+    pfile = &(current[hartid]->pfiles->opened_files[fd]);
     if (pfile->status == FD_NONE) break;
   }
   if (pfile->status != FD_NONE)  // no free entry
-    panic("do_opendir: no file entry for current process!\n");
+    panic("do_opendir: no file entry for current[hartid] process!\n");
 
   // initialize this file structure
   memcpy(pfile, opened_file, sizeof(struct file));
 
-  ++current->pfiles->nfiles;
+  ++current[hartid]->pfiles->nfiles;
   return fd;
 }
 
@@ -275,8 +279,9 @@ int do_unlink(char *path) {
 }
 
 int do_read_cwd(char *pathpa) {
+    int hartid = read_tp();
     memset(pathpa, '\0', MAX_DEVICE_NAME_LEN);
-    struct dentry *cwd = current->pfiles->cwd;
+    struct dentry *cwd = current[hartid]->pfiles->cwd;
     if(cwd == NULL) panic("read cwd failed! cwd is NULL\n");
     else if(cwd->parent==NULL){
         // sprint("do_read_cwd: cwd is root\n");
@@ -295,12 +300,13 @@ int do_read_cwd(char *pathpa) {
 }
 
 int do_change_cwd(char *pathpa) {
+    int hartid = read_tp();
     char absolute_path[MAX_DEVICE_NAME_LEN];
     memset(absolute_path,0,MAX_DEVICE_NAME_LEN);
     transfer_2_absolute_path(pathpa,absolute_path);
     int found = do_opendir(absolute_path);
-    current->pfiles->cwd = current->pfiles->opened_files[found].f_dentry;//实现change cwd
-    sprint("do_change_cwd:current->pfiles->cwd:%s\n",current->pfiles->cwd->name);
+    current[hartid]->pfiles->cwd = current[hartid]->pfiles->opened_files[found].f_dentry;//实现change cwd
+    sprint("do_change_cwd:current[hartid]->pfiles->cwd:%s\n",current[hartid]->pfiles->cwd->name);
     do_closedir(found);
 
     return 0;

@@ -54,6 +54,7 @@ void handle_mtimer_trap() {
 //
 void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval)
 {
+  int hartid = read_tp();
   sprint("handle_page_fault: %lx\n", stval);
   uint64 pa;
   pte_t *pte;
@@ -61,28 +62,29 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval)
   {
   case CAUSE_STORE_PAGE_FAULT:
     // added on lab3_c3
-    if(stval > USER_STACK_TOP - (current->n_stack_pages +1) * PGSIZE && stval < USER_STACK_TOP){
+    if(stval > USER_STACK_TOP - (current[hartid]->n_stack_pages +1) * PGSIZE && stval < USER_STACK_TOP){
         sprint("this address is not available!\n");
         sys_user_exit(-1);
         // panic("this address is not available\n");
         break;
     }
-    pte = page_walk(current->pagetable, stval, 0);
+    pte = page_walk(current[hartid]->pagetable, stval, 0);
     if(pte == 0)  // 缺页异常
     { 
       sprint("page_fault1\n");
       pa = (uint64)alloc_page(); // allocate a new physical page
       if ((void *)pa == NULL)
         panic("Can not allocate a new physical page.\n");
-      map_pages(current->pagetable, ROUNDDOWN(stval, PGSIZE), PGSIZE, pa, prot_to_type(PROT_READ | PROT_WRITE, 1)); // maps the new page to the virtual address that causes the page fault
-      current->n_stack_pages++;
+      map_pages(current[hartid]->pagetable, ROUNDDOWN(stval, PGSIZE), PGSIZE, pa, prot_to_type(PROT_READ | PROT_WRITE, 1)); // maps the new page to the virtual address that causes the page fault
+      current[hartid]->n_stack_pages++;
+      
     }
     else if(*pte & PTE_C)
     {
       sprint("copy on write\n");
       
       pa = PTE2PA(*pte);
-      copy_on_write_on_heap(current, current->parent, pa);
+      copy_on_write_on_heap(current[hartid], current[hartid]->parent, pa);
     }
     break;
   default:
@@ -96,15 +98,16 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval)
 //
 void rrsched() {
   // TODO (lab3_3): implements round-robin scheduling.
-  // hint: increase the tick_count member of current process by one, if it is bigger than
+  // hint: increase the tick_count member of current[hartid] process by one, if it is bigger than
   // TIME_SLICE_LEN (means it has consumed its time slice), change its status into READY,
   // place it in the rear of ready queue, and finally schedule next process to run.
 //  panic( "You need to further implement the timer handling in lab3_3.\n" );
-    current->tick_count++;
-    if (current->tick_count >= TIME_SLICE_LEN) {
-        current-> tick_count = 0;
-        insert_to_ready_queue(current);
-        current->status = READY;
+    int hartid = read_tp();
+    current[hartid]->tick_count++;
+    if (current[hartid]->tick_count >= TIME_SLICE_LEN) {
+        current[hartid]-> tick_count = 0;
+        insert_to_ready_queue(current[hartid]);
+        current[hartid]->status = READY;
         schedule();
     }
 }
@@ -116,11 +119,12 @@ void rrsched() {
 void smode_trap_handler(void) {
     // make sure we are in User mode before entering the trap handling.
     // we will consider other previous case in lab1_3 (interrupt).
+    int hartid = read_tp();
     if ((read_csr(sstatus) & SSTATUS_SPP) != 0) panic("usertrap: not from user mode");
 
-    assert(current);
+    assert(current[hartid]);
     // save user process counter.
-    current->trapframe->epc = read_csr(sepc);
+    current[hartid]->trapframe->epc = read_csr(sepc);
 
     // if the cause of trap is syscall from user application.
     // read_csr() and CAUSE_USER_ECALL are macros defined in kernel/riscv.h
@@ -129,7 +133,7 @@ void smode_trap_handler(void) {
   // use switch-case instead of if-else, as there are many cases since lab2_3.
   switch (cause) {
     case CAUSE_USER_ECALL:
-      handle_syscall(current->trapframe);
+      handle_syscall(current[hartid]->trapframe);
       break;
     case CAUSE_MTIMER_S_TRAP:
       handle_mtimer_trap();
@@ -148,6 +152,6 @@ void smode_trap_handler(void) {
       panic( "unexpected exception happened.\n" );
       break;
   }
-    // continue (come back to) the execution of current process.
-    switch_to(current);
+    // continue (come back to) the execution of current[hartid] process.
+    switch_to(current[hartid]);
 }

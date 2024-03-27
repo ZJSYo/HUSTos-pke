@@ -31,9 +31,10 @@ static void *elf_alloc_mb(elf_ctx *ctx, uint64 elf_pa, uint64 elf_va, uint64 siz
   if (pa == 0) panic("uvmalloc mem alloc falied\n");
 
   memset((void *)pa, 0, PGSIZE);
+  // sprint("hartid: %d, va: %lx, pa: %lx process_addr: %lx\n", read_tp(), elf_va, pa, msg->p);
   user_vm_map((pagetable_t)msg->p->pagetable, elf_va, PGSIZE, (uint64)pa,
          prot_to_type(PROT_WRITE | PROT_READ | PROT_EXEC, 1));
-
+  // sprint("alloc_page: %lx\n", pa);
   return pa;
 }
 static void *elf_process_alloc_mb(process *p, uint64 elf_pa, uint64 elf_va, uint64 size) {
@@ -291,6 +292,8 @@ void make_addr_line(elf_ctx *ctx, char *debug_line, uint64 length)
 //
 elf_status elf_load(elf_ctx *ctx) {
   // elf_prog_header structure is defined in kernel/elf.h
+  int hartid = read_tp();
+  // sprint("hartid = %d: Loading ELF file.\n", hartid);
   elf_prog_header ph_addr;
   int i, off;
 
@@ -419,8 +422,8 @@ void load_sym_tab(elf_ctx * elf_ctx){
 //
 void load_bincode_from_host_elf(process *p,char* filename) {
 
-
-  sprint("Application: %s\n", filename);
+  int hartid = read_tp();
+  sprint("hartid = %d: Application: %s\n", hartid,filename);
 
   //elf loading. elf_ctx is defined in kernel/elf.h, used to track the loading process.
   elf_ctx elfloader;
@@ -429,18 +432,22 @@ void load_bincode_from_host_elf(process *p,char* filename) {
 
   info.f = vfs_open(filename, O_RDONLY);
   info.p = p;
+  // sprint("1\n");
   // IS_ERR_VALUE is a macro defined in spike_interface/spike_htif.h
   if (IS_ERR_VALUE(info.f)) panic("Fail on openning the input application program.\n");
 
+  // sprint("2\n");
   // init elfloader context. elf_init() is defined above.
   if (elf_init(&elfloader, &info) != EL_OK)
     panic("fail to init elfloader.\n");
+  // sprint("3\n");
 
   // load elf. elf_load() is defined above.
   if (elf_load(&elfloader) != EL_OK) panic("Fail on loading elf.\n");
-
+  // sprint("4\n");
 
   load_sym_tab(&elfloader);
+  // sprint("5\n");
   // entry (virtual, also physical in lab1_x) address
   p->trapframe->epc = elfloader.ehdr.entry;
 
@@ -449,6 +456,6 @@ void load_bincode_from_host_elf(process *p,char* filename) {
   p->n_stack_pages = 1;
   p->init_flag = 0;
 
-  sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
+  sprint("hartid = %d: Application program entry point (virtual address): 0x%lx\n",hartid,p->trapframe->epc);
 }
 

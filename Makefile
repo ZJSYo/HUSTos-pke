@@ -135,6 +135,12 @@ USER_COW_CPPS 		:= user/app_cow.c user/user_lib.c
 USER_COW_OBJS  		:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c,%.o,$(USER_COW_CPPS)))
 
 USER_COW_TARGET 	:= $(HOSTFS_ROOT)/bin/cow
+
+USER_HELP_CPPS 		:= user/app_help.c user/user_lib.c
+
+USER_HELP_OBJS  		:= $(addprefix $(OBJ_DIR)/, $(patsubst %.c,%.o,$(USER_HELP_CPPS)))
+
+USER_HELP_TARGET 	:= $(HOSTFS_ROOT)/bin/help
 #------------------------targets------------------------
 $(OBJ_DIR):
 	@-mkdir -p $(OBJ_DIR)	
@@ -153,6 +159,7 @@ $(OBJ_DIR):
 	@-mkdir -p $(dir $(USER_SEM_OBJS))
 	@-mkdir -p $(dir $(USER_HM_OBJS))
 	@-mkdir -p $(dir $(USER_COW_OBJS))
+	@-mkdir -p $(dir $(USER_HELP_OBJS))
 
 	
 $(OBJ_DIR)/%.o : %.c
@@ -251,17 +258,24 @@ $(USER_COW_TARGET): $(OBJ_DIR) $(UTIL_LIB) $(USER_COW_OBJS)
 	@$(COMPILE) --entry=main $(USER_COW_OBJS) $(UTIL_LIB) -o $@
 	@echo "User app has been built into" \"$@\"
 
+$(USER_HELP_TARGET): $(OBJ_DIR) $(UTIL_LIB) $(USER_HELP_OBJS)
+	@echo "linking" $@	...	
+	-@mkdir -p $(HOSTFS_ROOT)/bin
+	@$(COMPILE) --entry=main $(USER_HELP_OBJS) $(UTIL_LIB) -o $@
+	@echo "User app has been built into" \"$@\"
+
 -include $(wildcard $(OBJ_DIR)/*/*.d)
 -include $(wildcard $(OBJ_DIR)/*/*/*.d)
 
 .DEFAULT_GOAL := $(all)
 
-all: $(KERNEL_TARGET) $(USER_TARGET) $(USER_E_TARGET) $(USER_M_TARGET) $(USER_T_TARGET) $(USER_C_TARGET) $(USER_O_TARGET) $(USER_EL_TARGET) $(USER_PF_TARGET) $(USER_SEM_TARGET) $(USER_BT_TARGET) ${USER_HM_TARGET} ${USER_COW_TARGET}
+all: $(KERNEL_TARGET) $(USER_TARGET) $(USER_E_TARGET) $(USER_M_TARGET) $(USER_T_TARGET) $(USER_C_TARGET) $(USER_O_TARGET) $(USER_EL_TARGET) $(USER_PF_TARGET) $(USER_SEM_TARGET) $(USER_BT_TARGET) ${USER_HM_TARGET} ${USER_COW_TARGET} ${USER_HELP_TARGET}
+	
 .PHONY:all
 
-run: $(KERNEL_TARGET) $(USER_TARGET) $(USER_E_TARGET) $(USER_M_TARGET) $(USER_T_TARGET) $(USER_C_TARGET) $(USER_O_TARGET) $(USER_EL_TARGET) $(USER_PF_TARGET) $(USER_SEM_TARGET) $(USER_BT_TARGET) ${USER_HM_TARGET} ${USER_COW_TARGET}
+run: $(KERNEL_TARGET) $(USER_TARGET) $(USER_E_TARGET) $(USER_M_TARGET) $(USER_T_TARGET) $(USER_C_TARGET) $(USER_O_TARGET) $(USER_EL_TARGET) $(USER_PF_TARGET) $(USER_SEM_TARGET) $(USER_BT_TARGET) ${USER_HM_TARGET} ${USER_COW_TARGET} ${USER_HELP_TARGET}
 	@echo "********************HUST PKE********************"
-	spike $(KERNEL_TARGET) /bin/shell
+	spike -p2 $(KERNEL_TARGET)  /bin/shell /bin/help
 
 # need openocd!
 gdb:$(KERNEL_TARGET) $(USER_TARGET)

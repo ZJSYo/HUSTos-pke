@@ -2,8 +2,8 @@
  * Utility functions for process management.
  *
  * Note: in Lab1, only one process (i.e., our user application) exists. Therefore,
- * PKE OS at this stage will set "current" to the loaded user application, and also
- * switch to the old "current" process after trap handling.
+ * PKE OS at this stage will set "current[hartid]" to the loaded user application, and also
+ * switch to the old "current[hartid]" process after trap handling.
  */
 
 #include "riscv.h"
@@ -17,6 +17,7 @@
 #include "memlayout.h"
 #include "sched.h"
 #include "spike_interface/spike_utils.h"
+#include "sync_utils.h"
 
 //Two functions defined in kernel/usertrap.S
 extern char smode_trap_vector[];
@@ -31,19 +32,22 @@ extern char trap_sec_start[];
 process procs[NPROC];
 semaphore sem_pool[NPROC];
 
-// current points to the currently running user-mode application.
-process *current = NULL;
+// current[hartid] points to the current[hartid]ly running user-mode application.
+process *current[NCPU] = {NULL};
 
 // points to the first free page in our simple heap. added @lab2_2
-uint64 g_ufree_page = USER_FREE_ADDRESS_START;
+uint64 g_ufree_page[NCPU] = {USER_FREE_ADDRESS_START};
 
 //
 // switch to a user-mode process
 //
 void switch_to(process *proc) {
     // sprint("switch_to process %d.\n", proc->pid);
+    int hartid = read_tp();
     assert(proc);
-    current = proc;
+    current[hartid] = proc;
+    // current[proc->hartid] = proc;
+    // sprint("hartid = %d,proc->hartid = %d\n",hartid,proc->hartid);
     
     // write the smode_trap_vector (64-bit func. address) defined in kernel/strap_vector.S
     // to the stvec privilege register, such that trap handler pointed by smode_trap_vector
@@ -55,6 +59,7 @@ void switch_to(process *proc) {
     proc->trapframe->kernel_sp = proc->kstack;      // process's kernel stack
     proc->trapframe->kernel_satp = read_csr(satp);  // kernel page table
     proc->trapframe->kernel_trap = (uint64)smode_trap_handler;
+    proc->trapframe->regs.tp = hartid; // process's hart id
 
     // SSTATUS_SPP and SSTATUS_SPIE are defined in kernel/riscv.h
     // set S Previous Privilege mode (the SSTATUS_SPP bit in sstatus register) to User mode.
@@ -94,8 +99,10 @@ void init_proc_pool() {
 // allocate an empty process, init its vm space. returns the pointer to
 // process strcuture. added @lab3_1
 //
+int process_mutex = 0;
 process *alloc_process() {
     // locate the first usable process structure
+    // lock(&process_mutex);
     int i;
 
     for (i = 0; i < NPROC; i++)
@@ -171,8 +178,8 @@ process *alloc_process() {
   // initialize files_struct
   procs[i].pfiles = init_proc_file_management();
 //   sprint("in alloc_proc. build proc_file_management successfully.\n");
-
   // return after initialization.
+//   unlock(&process_mutex);
   return &procs[i];
 }
 
@@ -181,7 +188,7 @@ process *alloc_process() {
 //
 int free_process(process *proc) {
     // we set the status to ZOMBIE, but cannot destruct its vm space immediately.
-    // since proc can be current process, and its user kernel stack is currently in use!
+    // since proc can be current[hartid] process, and its user kernel stack is current[hartid]ly in use!
     // but for proxy kernel, it (memory leaking) may NOT be a really serious issue,
     // as it is different from regular OS, which needs to run 7x24.
     proc->status = ZOMBIE;
@@ -190,6 +197,7 @@ int free_process(process *proc) {
         return 0;
     }
     awake_father_process(proc);
+    sprint("process %d is going to be freed\n",proc->pid);
     return 0;
 }
 
@@ -203,6 +211,7 @@ int free_process(process *proc) {
 int do_fork(process *parent) {
     // sprint("will fork a child from parent %d.\n", parent->pid);
     process *child = alloc_process();
+    int hartid = read_tp();
     // sprint("do_fork\n");
     for (int i = 0; i < parent->total_mapped_region; i++) {
         // browse parent's vm space, and copy its trapframe and data segments,
@@ -214,7 +223,6 @@ int do_fork(process *parent) {
                 break;
             }
             case STACK_SEGMENT:
-                sprint("p-%d:stack copy\n",current->pid);
                 memcpy((void *) lookup_pa(child->pagetable, child->mapped_info[STACK_SEGMENT].va),
                        (void *) lookup_pa(parent->pagetable, parent->mapped_info[i].va), PGSIZE);
                 break;
@@ -224,7 +232,6 @@ int do_fork(process *parent) {
                 // convert free_pages_address into a filter to skip reclaimed blocks in the heap
                 // when mapping the heap blocks
             {
-                sprint("p-%d:heap copy,heap_bottom=%lx,heap_top=%lx,heap_size=%lx\n",current->pid,parent->user_heap.heap_bottom,parent->user_heap.heap_top,parent->user_heap.heap_top-parent->user_heap.heap_bottom);
                 int free_block_filter[MAX_HEAP_PAGES];
                 memset(free_block_filter, 0, MAX_HEAP_PAGES);
                 uint64 heap_bottom = parent->user_heap.heap_bottom;
@@ -234,19 +241,14 @@ int do_fork(process *parent) {
                 }
 
                 // copy and map the heap blocks
-                for (uint64 heap_block = current->user_heap.heap_bottom;
-                     heap_block < current->user_heap.heap_top; heap_block += PGSIZE) {
+                for (uint64 heap_block = current[hartid]->user_heap.heap_bottom;
+                     heap_block < current[hartid]->user_heap.heap_top; heap_block += PGSIZE) {
                     if (free_block_filter[(heap_block - heap_bottom) / PGSIZE])  // skip free blocks
                         continue;
-
-                    // void *child_pa = alloc_page();
-                    // memcpy(child_pa, (void *) lookup_pa(parent->pagetable, heap_block), PGSIZE);
-                    // user_vm_map((pagetable_t) child->pagetable, heap_block, PGSIZE, (uint64) child_pa,prot_to_type(PROT_WRITE | PROT_READ, 1));
 
                     //lab3_ch3 cow 只映射不拷贝
                     uint64 pa = lookup_pa(parent->pagetable, heap_block);
                     user_vm_map((pagetable_t) child->pagetable, heap_block, PGSIZE, pa,prot_to_type(PROT_READ, 1));
-                    sprint("do_fork:heap map\n");
                     pte_t * pte = page_walk((pagetable_t) child->pagetable, heap_block, 0);
                     if( pte == NULL){
                         panic("segment mapping fault\n");
@@ -268,7 +270,6 @@ int do_fork(process *parent) {
             }
             case CODE_SEGMENT:
             {
-                sprint("dofork:code copy\n");
                 uint64 child_va = parent->mapped_info[i].va;
                 uint64 child_pa = lookup_pa(parent->pagetable, child_va);
                 user_vm_map((pagetable_t) child->pagetable, child_va, PGSIZE, child_pa,
@@ -283,7 +284,6 @@ int do_fork(process *parent) {
             }
             // copy the data segment from parent to child
             case DATA_SEGMENT:{
-                sprint("dofork:data copy\n");
                 for (int j = 0; j < parent->mapped_info[i].npages; j++)
                 {
                     uint64 addr = lookup_pa(parent->pagetable, parent->mapped_info[i].va + j * PGSIZE);
@@ -326,9 +326,10 @@ int do_fork(process *parent) {
 
 int do_wait(int pid){
     int flag = 0;//标志是否找到子进程
+    int hartid = read_tp();
     if(pid==-1){//父进程任意等待一个子进程
         for(int i=0;i < NPROC;i++){
-            if(procs[i].parent == current ){
+            if(procs[i].parent == current[hartid] ){
                 flag = 1;
                 if(procs[i].status == ZOMBIE){//找到了一个僵尸进程
                     procs[i].status = FREE;
@@ -339,20 +340,20 @@ int do_wait(int pid){
         if(flag==0){
             return -1;//没有找到子进程
         }else{//子进程还没有执行完，进入阻塞队列
-            current->status = BLOCKED;
-            insert_to_blocked_queue(current);
+            current[hartid]->status = BLOCKED;
+            insert_to_blocked_queue(current[hartid]);
             schedule();
             return -2;
         }
     }else if(pid>=0 && pid< NPROC){//等待特定的子进程
-        if(procs[pid].parent != current) return -1;
+        if(procs[pid].parent != current[hartid]) return -1;
         else{
             if(procs[pid].status == ZOMBIE) {//找到了一个僵尸进程
                 procs[pid].status = FREE;
                 return procs[pid].pid;//返回pid还是i都可以，初始化都一样
             }else{
-                current->status = BLOCKED;
-                insert_to_blocked_queue(current);
+                current[hartid]->status = BLOCKED;
+                insert_to_blocked_queue(current[hartid]);
                 schedule();
                 return -2;
             }
@@ -380,6 +381,7 @@ int do_sem_new(int value){
     return -1;
 }
 int do_sem_p(int sem_id){
+    int hartid = read_tp();
     if(sem_id<0||sem_id>=NPROC){
         panic("sem_id is illegal");
         return -1;
@@ -389,16 +391,16 @@ int do_sem_p(int sem_id){
     if(sem_pool[sem_id].value<0){
         //将当前进程加入等待队列
         if(sem_pool[sem_id].waiting_queue_head==NULL){
-            sem_pool[sem_id].waiting_queue_head=current;
-            sem_pool[sem_id].waiting_queue_tail=current;
-            current->queue_next=NULL;
+            sem_pool[sem_id].waiting_queue_head=current[hartid];
+            sem_pool[sem_id].waiting_queue_tail=current[hartid];
+            current[hartid]->queue_next=NULL;
         }
         else{
-            sem_pool[sem_id].waiting_queue_tail->queue_next=current;
-            sem_pool[sem_id].waiting_queue_tail=current;
-            current->queue_next=NULL;
+            sem_pool[sem_id].waiting_queue_tail->queue_next=current[hartid];
+            sem_pool[sem_id].waiting_queue_tail=current[hartid];
+            current[hartid]->queue_next=NULL;
         }
-        current->status=BLOCKED;//将当前进程状态设置为阻塞
+        current[hartid]->status=BLOCKED;//将当前进程状态设置为阻塞
         schedule();//调度下一个进程
         return 0;
     }
@@ -501,23 +503,22 @@ void init_process(process *p)
 // exec会根据读入的可执行文件将'原进程'的数据段、代码段和堆栈段替换。
 int do_exec(char *path,char * para)
 {
-    init_process(current); 
-    // sprint("user_s0_1 = %lx user_sp = %lx\n", current->trapframe->regs.s0, current->trapframe->regs.sp);
-    load_bincode_from_host_elf(current,path);
-    // sprint("user_s0_2 = %lx user_sp = %lx\n", current->trapframe->regs.s0, current->trapframe->regs.sp);
+  int hartid = read_tp();
+  init_process(current[hartid]); 
+  load_bincode_from_host_elf(current[hartid],path);
   //push into stack
-  size_t *vsp = (size_t *)current->trapframe->regs.sp;
+  size_t *vsp = (size_t *)current[hartid]->trapframe->regs.sp;
   vsp -= 8;
-  size_t *sp = (size_t *)user_va_to_pa(current->pagetable, (void *)vsp);
+  size_t *sp = (size_t *)user_va_to_pa(current[hartid]->pagetable, (void *)vsp);
   memcpy((char *)sp,para, 1 + strlen(para));
   vsp--, sp--;
   *sp = (size_t)(1 + vsp);
 
   // reg
-  current->trapframe->regs.sp = (uint64)vsp;
-  current->trapframe->regs.a0 = (uint64)1;
-  current->trapframe->regs.a1 = (uint64)vsp;
-//   sprint("user_s0_3 = %lx user_sp = %lx\n", current->trapframe->regs.s0, current->trapframe->regs.sp);
+  current[hartid]->trapframe->regs.sp = (uint64)vsp;
+  current[hartid]->trapframe->regs.a0 = (uint64)1;
+  current[hartid]->trapframe->regs.a1 = (uint64)vsp;
+
   return 0;
 }
 void copy_on_write_on_heap(process * child,process * parent,uint64 pa){
